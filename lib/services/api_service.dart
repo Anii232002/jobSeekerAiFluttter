@@ -6,7 +6,7 @@ import '../models/resume_model.dart';
 
 class ApiService {
   // TODO: Replace with actual backend URL
-  static const String baseUrl = 'http://16.170.239.29:8000';
+  static const String baseUrl = 'http://13.60.231.101:8000';
 
   static Future<PaginatedJobResponse> getJobs({
     String? query,
