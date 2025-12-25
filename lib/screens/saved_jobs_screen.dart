@@ -286,42 +286,29 @@ class _SavedJobsScreenState extends State<SavedJobsScreen>
       },
     );
 
-    try {
-      final success = await jobProvider.runCronJob();
+    // Trigger the cron job (fire and forget from UI perspective)
+    // We don't await the result because we want to return control to user
+    jobProvider.runCronJob().then((success) {
+      debugPrint("Background cron job finished. Success: $success");
+    });
 
-      // Close loading dialog
-      if (mounted) Navigator.of(context).pop();
+    // Wait 1 second to simulate "request sent"
+    await Future.delayed(const Duration(seconds: 1));
 
-      // Show result message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              success
-                  ? 'Jobs refreshed successfully!'
-                  : 'Failed to refresh jobs. Please try again.',
-            ),
-            backgroundColor: success
-                ? AppTheme.accentGreen
-                : AppTheme.accentRed,
-            duration: const Duration(seconds: 3),
+    // Close loading dialog
+    if (mounted) Navigator.of(context).pop();
+
+    // Show message immediately
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Jobs are being updated in the background. Check back soon!',
           ),
-        );
-      }
-    } catch (e) {
-      // Close loading dialog
-      if (mounted) Navigator.of(context).pop();
-
-      // Show error message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: AppTheme.accentRed,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
+          backgroundColor: AppTheme.accentGreen,
+          duration: Duration(seconds: 3),
+        ),
+      );
     }
   }
 }

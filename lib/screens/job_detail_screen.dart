@@ -108,6 +108,12 @@ class JobDetailScreen extends StatelessWidget {
 
           const SizedBox(height: 16),
 
+          // Match Score Indicator (if available)
+          if (job.matchScore != null) ...[
+            _buildMatchScoreIndicator(context),
+            const SizedBox(height: 16),
+          ],
+
           // Company name
           Text(
             job.companyName,
@@ -132,10 +138,50 @@ class JobDetailScreen extends StatelessWidget {
           // Job type tags
           Wrap(
             spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.center,
             children: [
               if (job.category != null) _buildJobTypeChip(job.displayCategory),
               _buildJobTypeChip('Remote'),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMatchScoreIndicator(BuildContext context) {
+    final score = job.matchScore!;
+    final percentage = (score * 100).toInt();
+
+    Color color;
+    if (score >= 0.8) {
+      color = AppTheme.accentGreen;
+    } else if (score >= 0.5) {
+      color = AppTheme.primaryYellow;
+    } else {
+      color = Colors.grey;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: color, width: 1.5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.auto_awesome, color: color, size: 20),
+          const SizedBox(width: 8),
+          Text(
+            '$percentage% Resume Match',
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
           ),
         ],
       ),
@@ -447,7 +493,7 @@ class JobDetailScreen extends StatelessWidget {
   ) async {
     try {
       // Try to launch the URL directly
-      print("==>" + job.applyLink);
+      print("==>${job.applyLink}");
       final uri = Uri.parse(job.applyLink);
       await launchUrl(uri, mode: LaunchMode.externalApplication);
 

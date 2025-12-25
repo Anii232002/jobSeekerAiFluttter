@@ -13,6 +13,7 @@ class Job {
   final String? skills;
   final String? category;
   final String? companyNameField;
+  final double? matchScore;
 
   Job({
     required this.id,
@@ -29,6 +30,7 @@ class Job {
     this.skills,
     this.category,
     this.companyNameField,
+    this.matchScore,
   });
 
   factory Job.fromJson(Map<String, dynamic> json) {
@@ -47,6 +49,9 @@ class Job {
       skills: json['skills'],
       category: json['category'],
       companyNameField: json['company_name'],
+      matchScore: json['match_score'] != null
+          ? (json['match_score'] as num).toDouble()
+          : null,
     );
   }
 
@@ -66,6 +71,7 @@ class Job {
       'skills': skills,
       'category': category,
       'company_name': companyNameField,
+      'match_score': matchScore,
     };
   }
 

@@ -7,6 +7,7 @@ import '../widgets/filter_drawer.dart';
 import '../theme/app_theme.dart';
 import 'job_detail_screen.dart';
 import 'saved_jobs_screen.dart';
+import 'resume_screen.dart';
 
 class JobsScreen extends StatefulWidget {
   const JobsScreen({super.key});
@@ -51,13 +52,22 @@ class _JobsScreenState extends State<JobsScreen> {
               );
             },
           ),
+          IconButton(
+            icon: const Icon(Icons.description),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ResumeScreen()),
+              );
+            },
+          ),
         ],
       ),
       drawer: const FilterDrawer(),
       body: Consumer<JobProvider>(
         builder: (context, jobProvider, child) {
-          // Show error toast for errors when jobs are already loaded
-          if (jobProvider.error != null && jobProvider.jobs.isNotEmpty) {
+          // Show error toast for any error
+          if (jobProvider.error != null) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -265,7 +275,8 @@ class _JobsScreenState extends State<JobsScreen> {
         jobProvider.selectedLocations.isNotEmpty ||
         jobProvider.selectedSkills.isNotEmpty ||
         jobProvider.selectedCategory != null ||
-        jobProvider.selectedSources.isNotEmpty;
+        jobProvider.selectedSources.isNotEmpty ||
+        jobProvider.selectedResumeId != null;
   }
 
   Widget _buildActiveFiltersBar(JobProvider jobProvider) {
@@ -291,8 +302,12 @@ class _JobsScreenState extends State<JobsScreen> {
           ),
           TextButton(
             onPressed: () {
-              jobProvider.clearFilters();
-              jobProvider.loadJobs(refresh: true);
+              if (jobProvider.selectedResumeId != null) {
+                jobProvider.clearResumeFilter();
+              } else {
+                jobProvider.clearFilters();
+                jobProvider.loadJobs(refresh: true);
+              }
             },
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -330,6 +345,10 @@ class _JobsScreenState extends State<JobsScreen> {
 
     if (jobProvider.selectedSkills.isNotEmpty) {
       filters.add('Skills: ${jobProvider.selectedSkills.length}');
+    }
+
+    if (jobProvider.selectedResumeId != null) {
+      filters.add('Resume Match Active');
     }
 
     return 'Active filters: ${filters.join(', ')}';

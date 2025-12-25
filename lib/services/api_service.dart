@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/job_model.dart';
+import '../models/user_model.dart';
+import '../models/resume_model.dart';
 
 class ApiService {
   // TODO: Replace with actual backend URL
@@ -12,6 +14,7 @@ class ApiService {
     String? skills,
     String? category,
     String? source,
+    String? resumeId,
     int page = 1,
     int limit = 50,
   }) async {
@@ -19,12 +22,17 @@ class ApiService {
       final Map<String, String> queryParams = {};
 
       if (query != null && query.isNotEmpty) queryParams['q'] = query;
-      if (location != null && location.isNotEmpty)
+      if (location != null && location.isNotEmpty) {
         queryParams['location'] = location;
+      }
       if (skills != null && skills.isNotEmpty) queryParams['skills'] = skills;
-      if (category != null && category.isNotEmpty)
+      if (category != null && category.isNotEmpty) {
         queryParams['category'] = category;
+      }
       if (source != null && source.isNotEmpty) queryParams['source'] = source;
+      if (resumeId != null && resumeId.isNotEmpty) {
+        queryParams['resume_id'] = resumeId;
+      }
       queryParams['page'] = page.toString();
       queryParams['limit'] = limit.toString();
       print("==> ${queryParams.toString()}");
@@ -82,6 +90,118 @@ class ApiService {
         return result;
       } else {
         throw Exception('Failed to run cron job: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  static Future<User> login(String username, String password) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/users/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'username': username, 'password': password}),
+      );
+
+      if (response.statusCode == 200) {
+        return User.fromJson(jsonDecode(response.body));
+      } else if (response.statusCode == 404 || response.statusCode == 401) {
+        throw Exception(
+          'User not found',
+        ); // Specific message for provider to catch
+      } else {
+        throw Exception('Login failed: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('$e');
+    }
+  }
+
+  static Future<User> register(
+    String username,
+    String password,
+    String email,
+  ) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/users/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': username,
+          'password': password,
+          'email': email,
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return User.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception('Registration failed: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  static Future<Resume> uploadResume({
+    required String userId,
+    String? filePath,
+    List<int>? fileBytes,
+    required String fileName,
+  }) async {
+    try {
+      final uri = Uri.parse(
+        '$baseUrl/resumes/upload',
+      ); // request.fields handle user_id
+      final request = http.MultipartRequest('POST', uri);
+
+      // Add user_id to fields
+      request.fields['user_id'] = userId;
+
+      if (fileBytes != null) {
+        // Web / Bytes provided
+        request.files.add(
+          http.MultipartFile.fromBytes('file', fileBytes, filename: fileName),
+        );
+      } else if (filePath != null) {
+        // Mobile/Desktop
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'file',
+            filePath,
+            filename: fileName,
+          ),
+        );
+      } else {
+        throw Exception('No file data provided');
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final jsonResponse = jsonDecode(response.body);
+        return Resume.fromJson(jsonResponse);
+      } else {
+        throw Exception('Failed to upload resume: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  static Future<List<Resume>> getResumes(String userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/resumes/?user_id=$userId'),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonList = jsonDecode(response.body);
+        return jsonList.map((json) => Resume.fromJson(json)).toList();
+      } else {
+        throw Exception('Failed to load resumes');
       }
     } catch (e) {
       throw Exception('Network error: $e');

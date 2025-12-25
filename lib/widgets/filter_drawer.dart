@@ -174,7 +174,7 @@ class _FilterDrawerState extends State<FilterDrawer> {
                       const SizedBox(height: 8),
 
                       // Location suggestions
-                      Container(
+                      SizedBox(
                         height: 120,
                         child: SingleChildScrollView(
                           child: Wrap(

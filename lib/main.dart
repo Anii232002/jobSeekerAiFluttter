@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/jobs_screen.dart';
+import 'screens/login_screen.dart';
 import 'providers/job_provider.dart';
 import 'theme/app_theme.dart';
 
@@ -18,7 +19,7 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Job Finder AI',
         theme: AppTheme.darkTheme,
-        home: const JobsScreen(),
+        home: const LoginScreen(),
         debugShowCheckedModeBanner: false,
       ),
     );

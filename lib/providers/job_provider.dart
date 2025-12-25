@@ -2,12 +2,19 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/job_model.dart';
+import '../models/user_model.dart';
+import '../models/resume_model.dart';
 import '../services/api_service.dart';
 
 class JobProvider with ChangeNotifier {
   List<Job> _jobs = [];
   List<Job> _savedJobs = [];
   List<Job> _appliedJobs = [];
+
+  // User and Resume State
+  User? _currentUser;
+  List<Resume> _resumes = [];
+
   bool _isLoading = false;
   String? _error;
 
@@ -20,10 +27,11 @@ class JobProvider with ChangeNotifier {
 
   // Filter properties
   String _searchQuery = '';
-  List<String> _selectedLocations = [];
-  List<String> _selectedSkills = [];
+  final List<String> _selectedLocations = [];
+  final List<String> _selectedSkills = [];
   String? _selectedCategory;
-  List<String> _selectedSources = [];
+  final List<String> _selectedSources = [];
+  String? _selectedResumeId;
 
   // SharedPreferences instance
   SharedPreferences? _prefs;
@@ -37,6 +45,8 @@ class JobProvider with ChangeNotifier {
   List<Job> get jobs => _jobs;
   List<Job> get savedJobs => _savedJobs;
   List<Job> get appliedJobs => _appliedJobs;
+  User? get currentUser => _currentUser;
+  List<Resume> get resumes => _resumes;
   bool get isLoading => _isLoading;
   String? get error => _error;
   String get searchQuery => _searchQuery;
@@ -44,6 +54,7 @@ class JobProvider with ChangeNotifier {
   List<String> get selectedSkills => _selectedSkills;
   String? get selectedCategory => _selectedCategory;
   List<String> get selectedSources => _selectedSources;
+  String? get selectedResumeId => _selectedResumeId;
 
   // Pagination getters
   int get currentPage => _currentPage;
@@ -174,107 +185,45 @@ class JobProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Try to load from API first, fallback to mock data
-      try {
-        final response = await ApiService.getJobs(
-          query: _searchQuery.isNotEmpty ? _searchQuery : null,
-          location: _selectedLocations.isNotEmpty
-              ? _selectedLocations.join(',')
-              : null,
-          skills: _selectedSkills.isNotEmpty ? _selectedSkills.join(',') : null,
-          category: _selectedCategory,
-          source: _selectedSources.isNotEmpty
-              ? _selectedSources.join(',')
-              : null,
-          page: targetPage,
-          limit: 50,
-        );
+      final response = await ApiService.getJobs(
+        query: _searchQuery.isNotEmpty ? _searchQuery : null,
+        location: _selectedLocations.isNotEmpty
+            ? _selectedLocations.join(',')
+            : null,
+        skills: _selectedSkills.isNotEmpty ? _selectedSkills.join(',') : null,
+        category: _selectedCategory,
+        source: _selectedSources.isNotEmpty ? _selectedSources.join(',') : null,
+        resumeId: _selectedResumeId,
+        page: targetPage,
+        limit: 50,
+      );
 
-        _jobs = response.jobs;
-        _currentPage = response.page;
-        _totalPages = response.totalPages;
-        _hasNext = response.hasNext;
-        _hasPrevious = response.hasPrevious;
-        _total = response.total;
-      } catch (apiError) {
-        // Fallback to mock data if API fails
-        debugPrint('API failed, using mock data: $apiError');
-        _jobs = ApiService.getMockJobs();
-
-        // Apply filters to mock data
-        _jobs = _applyFiltersToMockData(_jobs);
-
-        // Set mock pagination values
-        _currentPage = 1;
-        _totalPages = 1;
-        _hasNext = false;
-        _hasPrevious = false;
-        _total = _jobs.length;
-      }
+      _jobs = response.jobs;
+      _currentPage = response.page;
+      _totalPages = response.totalPages;
+      _hasNext = response.hasNext;
+      _hasPrevious = response.hasPrevious;
+      _total = response.total;
     } catch (e) {
-      _error = e.toString();
+      debugPrint('Error loading jobs: $e');
+      if (e.toString().contains('Network error')) {
+        _error = 'Please check your internet connection and try again.';
+      } else if (e.toString().contains('Failed to load jobs')) {
+        _error = 'Unable to fetch jobs from server. Please try again later.';
+      } else {
+        _error = 'An unexpected error occurred. Please try again.';
+      }
+
+      // Ensure we don't show old data if a refresh fails hard (optional, depends on UX preference)
+      // But usually if refresh fails, we keep old data?
+      // The user said "remove the mock jobs ... showing once we get error".
+      // This implies if we were showing mock jobs, we shouldn't.
+      // But if we had REAL jobs, and refresh failed, keeping them is fine.
+      // But if this is the first load, jobs will be empty.
     } finally {
       _isLoading = false;
       notifyListeners();
     }
-  }
-
-  // Apply filters to mock data
-  List<Job> _applyFiltersToMockData(List<Job> jobs) {
-    return jobs.where((job) {
-      // Search query filter
-      if (_searchQuery.isNotEmpty) {
-        final query = _searchQuery.toLowerCase();
-        if (!job.title.toLowerCase().contains(query) &&
-            !job.desc.toLowerCase().contains(query) &&
-            !job.companyName.toLowerCase().contains(query)) {
-          return false;
-        }
-      }
-
-      // Location filter
-      if (_selectedLocations.isNotEmpty) {
-        if (job.location == null) {
-          return false;
-        }
-        final jobLocation = job.location!.toLowerCase();
-        if (!_selectedLocations.any(
-          (loc) => jobLocation.contains(loc.toLowerCase()),
-        )) {
-          return false;
-        }
-      }
-
-      // Skills filter
-      if (_selectedSkills.isNotEmpty) {
-        final jobSkills = job.skillsList.map((s) => s.toLowerCase()).toList();
-        if (!_selectedSkills.any(
-          (skill) => jobSkills.any(
-            (jobSkill) => jobSkill.contains(skill.toLowerCase()),
-          ),
-        )) {
-          return false;
-        }
-      }
-
-      // Category filter
-      if (_selectedCategory != null && _selectedCategory!.isNotEmpty) {
-        if (job.category?.toLowerCase() != _selectedCategory!.toLowerCase()) {
-          return false;
-        }
-      }
-
-      // Source filter
-      if (_selectedSources.isNotEmpty) {
-        if (!_selectedSources.any(
-          (source) => job.source.toLowerCase() == source.toLowerCase(),
-        )) {
-          return false;
-        }
-      }
-
-      return true;
-    }).toList();
   }
 
   // Update search filters
@@ -321,8 +270,22 @@ class JobProvider with ChangeNotifier {
     _selectedSkills.clear();
     _selectedCategory = null;
     _selectedSources.clear();
+    _selectedResumeId = null;
     _currentPage = 1; // Reset to first page when clearing filters
     notifyListeners();
+  }
+
+  // Resume Similarity Search
+  Future<void> searchJobsWithResume(String resumeId) async {
+    _selectedResumeId = resumeId;
+    _currentPage = 1;
+    await loadJobs(refresh: true, page: 1);
+  }
+
+  void clearResumeFilter() async {
+    _selectedResumeId = null;
+    _currentPage = 1;
+    await loadJobs(refresh: true, page: 1);
   }
 
   // Search with current filters
@@ -428,5 +391,83 @@ class JobProvider with ChangeNotifier {
       debugPrint('Error running cron job: $e');
       return false;
     }
+  }
+
+  // User Management
+  Future<bool> login(String username, String password) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      // 1. Try to login
+      try {
+        _currentUser = await ApiService.login(username, password);
+      } catch (e) {
+        if (e.toString().contains('User not found') ||
+            e.toString().contains('404')) {
+          // 2. User not found, so register them (Auto-registration)
+          _currentUser = await ApiService.register(
+            username,
+            password,
+            '$username@example.com',
+          );
+        } else {
+          // Other error (wrong password, server error, etc.)
+          rethrow;
+        }
+      }
+
+      await loadUserResumes();
+
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<void> loadUserResumes() async {
+    if (_currentUser == null) return;
+    try {
+      _resumes = await ApiService.getResumes(_currentUser!.id);
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Failed to load resumes: $e");
+    }
+  }
+
+  void logout() {
+    _currentUser = null;
+    notifyListeners();
+  }
+
+  // Resume Management
+  Future<void> uploadResume(dynamic platformFile) async {
+    if (_currentUser == null) return;
+
+    try {
+      final Resume newResume = await ApiService.uploadResume(
+        userId: _currentUser!.id,
+        filePath: platformFile.path,
+        fileBytes: platformFile.bytes,
+        fileName: platformFile.name,
+      );
+
+      _resumes.add(newResume);
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Upload failed: $e");
+      rethrow;
+    }
+  }
+
+  void deleteResume(String resumeId) {
+    _resumes.removeWhere((r) => r.id == resumeId);
+    notifyListeners();
   }
 }

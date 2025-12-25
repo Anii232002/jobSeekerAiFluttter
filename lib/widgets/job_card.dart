@@ -38,7 +38,7 @@ class JobCard extends StatelessWidget {
                   // Company logo
                   _buildCompanyLogo(),
                   const SizedBox(width: 12),
-                  
+
                   // Job title and company name
                   Expanded(
                     child: Column(
@@ -46,23 +46,21 @@ class JobCard extends StatelessWidget {
                       children: [
                         Text(
                           job.title,
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 4),
                         Text(
                           job.companyName,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppTheme.textTertiary,
-                          ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: AppTheme.textTertiary),
                         ),
                       ],
                     ),
                   ),
-                  
+
                   // Bookmark icon
                   Consumer<JobProvider>(
                     builder: (context, jobProvider, child) {
@@ -73,30 +71,37 @@ class JobCard extends StatelessWidget {
                         },
                         icon: Icon(
                           isSaved ? Icons.bookmark : Icons.bookmark_border,
-                          color: isSaved ? AppTheme.primaryYellow : AppTheme.textTertiary,
+                          color: isSaved
+                              ? AppTheme.primaryYellow
+                              : AppTheme.textTertiary,
                         ),
                       );
                     },
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Job type tags
-              if (job.category != null) ...[
+              if (job.category != null || job.matchScore != null) ...[
                 Wrap(
                   spacing: 8,
+                  runSpacing: 8,
                   children: [
-                    _buildJobTypeChip(job.displayCategory),
+                    if (job.matchScore != null)
+                      _buildMatchScoreChip(job.matchScore!),
+                    if (job.category != null)
+                      _buildJobTypeChip(job.displayCategory),
                     _buildJobTypeChip('Remote'),
-                    if (job.location?.toLowerCase().contains('anywhere') == true)
+                    if (job.location?.toLowerCase().contains('anywhere') ==
+                        true)
                       _buildJobTypeChip('Anywhere'),
                   ],
                 ),
                 const SizedBox(height: 16),
               ],
-              
+
               // Bottom row with salary, location, and apply button
               Row(
                 children: [
@@ -108,9 +113,8 @@ class JobCard extends StatelessWidget {
                         if (job.salary != null) ...[
                           Text(
                             job.salary!,
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w600),
                           ),
                           const SizedBox(height: 4),
                         ],
@@ -126,9 +130,8 @@ class JobCard extends StatelessWidget {
                               Expanded(
                                 child: Text(
                                   job.location!,
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppTheme.textTertiary,
-                                  ),
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(color: AppTheme.textTertiary),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -139,9 +142,9 @@ class JobCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  
+
                   const SizedBox(width: 16),
-                  
+
                   // Right side: Apply button or status tag
                   if (statusTag != null)
                     _buildStatusTag(statusTag!)
@@ -149,11 +152,14 @@ class JobCard extends StatelessWidget {
                     Consumer<JobProvider>(
                       builder: (context, jobProvider, child) {
                         final isApplied = jobProvider.isJobApplied(job);
-                        
+
                         if (isApplied) {
-                          return _buildStatusTag('Applied', color: AppTheme.accentGreen);
+                          return _buildStatusTag(
+                            'Applied',
+                            color: AppTheme.accentGreen,
+                          );
                         }
-                        
+
                         return ElevatedButton(
                           onPressed: () => _showApplyDialog(context),
                           child: const Text('Apply'),
@@ -224,9 +230,46 @@ class JobCard extends StatelessWidget {
       const Color(0xFF9C27B0), // Purple
       const Color(0xFF795548), // Brown
     ];
-    
+
     final hash = job.companyName.hashCode;
     return colors[hash.abs() % colors.length];
+  }
+
+  Widget _buildMatchScoreChip(double score) {
+    Color color;
+    Color textColor = Colors.white;
+
+    if (score >= 0.8) {
+      color = AppTheme.accentGreen;
+    } else if (score >= 0.5) {
+      color = AppTheme.primaryYellow;
+      textColor = Colors.black;
+    } else {
+      color = Colors.grey;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.auto_awesome, size: 14, color: textColor),
+          const SizedBox(width: 4),
+          Text(
+            '${(score * 100).toStringAsFixed(0)}% Match',
+            style: TextStyle(
+              color: textColor,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildJobTypeChip(String label) {
@@ -272,7 +315,9 @@ class JobCard extends StatelessWidget {
         return AlertDialog(
           backgroundColor: AppTheme.cardBackground,
           title: const Text('Apply for Job'),
-          content: Text('You will be redirected to apply for "${job.title}" at ${job.companyName}.'),
+          content: Text(
+            'You will be redirected to apply for "${job.title}" at ${job.companyName}.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -302,7 +347,9 @@ class JobCard extends StatelessWidget {
             return AlertDialog(
               backgroundColor: AppTheme.cardBackground,
               title: const Text('Did you apply?'),
-              content: const Text('Let us know if you successfully applied for this job.'),
+              content: const Text(
+                'Let us know if you successfully applied for this job.',
+              ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
@@ -311,8 +358,11 @@ class JobCard extends StatelessWidget {
                 ElevatedButton(
                   onPressed: () {
                     Navigator.of(context).pop();
-                    Provider.of<JobProvider>(context, listen: false).markJobAsApplied(job);
-                    
+                    Provider.of<JobProvider>(
+                      context,
+                      listen: false,
+                    ).markJobAsApplied(job);
+
                     // Show success message
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
