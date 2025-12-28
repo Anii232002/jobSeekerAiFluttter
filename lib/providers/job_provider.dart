@@ -4,6 +4,8 @@ import 'dart:convert';
 import '../models/job_model.dart';
 import '../models/user_model.dart';
 import '../models/resume_model.dart';
+import '../models/application_model.dart';
+import '../models/insight_model.dart';
 import '../services/api_service.dart';
 
 class JobProvider with ChangeNotifier {
@@ -14,6 +16,10 @@ class JobProvider with ChangeNotifier {
   // User and Resume State
   User? _currentUser;
   List<Resume> _resumes = [];
+
+  // Application and Insight State
+  List<Application> _applications = [];
+  InsightSummary? _insightSummary;
 
   bool _isLoading = false;
   String? _error;
@@ -47,6 +53,8 @@ class JobProvider with ChangeNotifier {
   List<Job> get appliedJobs => _appliedJobs;
   User? get currentUser => _currentUser;
   List<Resume> get resumes => _resumes;
+  List<Application> get applications => _applications;
+  InsightSummary? get insightSummary => _insightSummary;
   bool get isLoading => _isLoading;
   String? get error => _error;
   String get searchQuery => _searchQuery;
@@ -359,8 +367,29 @@ class JobProvider with ChangeNotifier {
         _saveSavedJobs(); // Save to persistent storage
       }
       _saveAppliedJobs(); // Save to persistent storage
+      
+      // Also track in API if user is logged in
+      if (_currentUser != null) {
+        _trackApplicationInAPI(job);
+      }
+      
       notifyListeners();
     }
+  }
+
+  /// Track application in API (fire and forget)
+  void _trackApplicationInAPI(Job job) {
+    if (_currentUser == null) return;
+    
+    // Fire and forget - don't block UI
+    ApiService.createApplication(
+      userId: _currentUser!.id,
+      jobId: job.id,
+      status: 'applied',
+    ).catchError((e) {
+      debugPrint('Error tracking application in API: $e');
+      return <String, dynamic>{};
+    });
   }
 
   bool isJobApplied(Job job) {
@@ -431,6 +460,12 @@ class JobProvider with ChangeNotifier {
     }
   }
 
+  /// Set current user directly (used in onboarding)
+  void setCurrentUser(User user) {
+    _currentUser = user;
+    notifyListeners();
+  }
+
   Future<void> loadUserResumes() async {
     if (_currentUser == null) return;
     try {
@@ -464,6 +499,171 @@ class JobProvider with ChangeNotifier {
       debugPrint("Upload failed: $e");
       rethrow;
     }
+  }
+
+  // ==================== APPLICATION METHODS ====================
+
+  /// Load applications from the API
+  Future<void> loadApplications({bool refresh = false}) async {
+    if (_isLoading && !refresh) return;
+
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      if (_currentUser == null) {
+        throw Exception('User not logged in');
+      }
+
+      final response = await ApiService.listApplications(
+        userId: _currentUser!.id,
+      );
+
+      _applications = response.applications;
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      debugPrint('Error loading applications: $e');
+      notifyListeners();
+    }
+  }
+
+  /// Create a new application
+  Future<void> createApplication({
+    required int jobId,
+    String status = 'applied',
+  }) async {
+    if (_currentUser == null) {
+      throw Exception('User not logged in');
+    }
+
+    try {
+      await ApiService.createApplication(
+        userId: _currentUser!.id,
+        jobId: jobId,
+        status: status,
+      );
+
+      // Reload applications after creating
+      await loadApplications(refresh: true);
+    } catch (e) {
+      _error = e.toString();
+      debugPrint('Error creating application: $e');
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  /// Update an application
+  Future<void> updateApplication({
+    required int applicationId,
+    String? status,
+    String? notes,
+    String? salaryOffered,
+    DateTime? followUpDate,
+  }) async {
+    if (_currentUser == null) {
+      throw Exception('User not logged in');
+    }
+
+    try {
+      await ApiService.updateApplication(
+        applicationId: applicationId,
+        userId: _currentUser!.id,
+        status: status,
+        notes: notes,
+        salaryOffered: salaryOffered,
+        followUpDate: followUpDate,
+      );
+
+      // Update local state
+      final index = _applications.indexWhere((app) => app.id == applicationId);
+      if (index != -1) {
+        final updatedApp = _applications[index];
+        _applications[index] = Application(
+          id: updatedApp.id,
+          userId: updatedApp.userId,
+          jobId: updatedApp.jobId,
+          jobTitle: updatedApp.jobTitle,
+          companyName: updatedApp.companyName,
+          status: status ?? updatedApp.status,
+          dateApplied: updatedApp.dateApplied,
+          dateUpdated: DateTime.now(),
+          notes: notes ?? updatedApp.notes,
+          salaryOffered: salaryOffered ?? updatedApp.salaryOffered,
+          followUpDate: followUpDate ?? updatedApp.followUpDate,
+          applyLink: updatedApp.applyLink,
+          jobDescription: updatedApp.jobDescription,
+        );
+        notifyListeners();
+      }
+    } catch (e) {
+      _error = e.toString();
+      debugPrint('Error updating application: $e');
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  /// Delete an application
+  Future<void> deleteApplication(int applicationId) async {
+    if (_currentUser == null) {
+      throw Exception('User not logged in');
+    }
+
+    try {
+      await ApiService.deleteApplication(
+        applicationId: applicationId,
+        userId: _currentUser!.id,
+      );
+
+      _applications.removeWhere((app) => app.id == applicationId);
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      debugPrint('Error deleting application: $e');
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  // ==================== INSIGHT METHODS ====================
+
+  /// Load insight summary from the API
+  Future<void> loadInsightSummary() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      if (_currentUser == null) {
+        throw Exception('User not logged in');
+      }
+
+      _insightSummary =
+          await ApiService.getInsightSummary(userId: _currentUser!.id);
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      debugPrint('Error loading insights: $e');
+      notifyListeners();
+    }
+  }
+
+  /// Get application stats
+  Future<ApplicationStats> getApplicationStats() async {
+    if (_currentUser == null) {
+      throw Exception('User not logged in');
+    }
+
+    return await ApiService.getApplicationStats(
+      userId: _currentUser!.id,
+    );
   }
 
   void deleteResume(String resumeId) {

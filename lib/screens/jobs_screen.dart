@@ -8,6 +8,8 @@ import '../theme/app_theme.dart';
 import 'job_detail_screen.dart';
 import 'saved_jobs_screen.dart';
 import 'resume_screen.dart';
+import 'applications_screen.dart';
+import 'insight_screen.dart';
 
 class JobsScreen extends StatefulWidget {
   const JobsScreen({super.key});
@@ -42,6 +44,35 @@ class _JobsScreenState extends State<JobsScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.insights),
+            onPressed: () {
+              final userId = Provider.of<JobProvider>(context, listen: false)
+                  .currentUser
+                  ?.id;
+              if (userId != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => InsightScreen(userId: userId),
+                  ),
+                );
+              }
+            },
+            tooltip: 'View Insights',
+          ),
+          IconButton(
+            icon: const Icon(Icons.assignment),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ApplicationsScreen(),
+                ),
+              );
+            },
+            tooltip: 'My Applications',
+          ),
+          IconButton(
             icon: const Icon(Icons.bookmark),
             onPressed: () {
               Navigator.push(
@@ -51,6 +82,7 @@ class _JobsScreenState extends State<JobsScreen> {
                 ),
               );
             },
+            tooltip: 'Saved Jobs',
           ),
           IconButton(
             icon: const Icon(Icons.description),
@@ -60,6 +92,7 @@ class _JobsScreenState extends State<JobsScreen> {
                 MaterialPageRoute(builder: (context) => const ResumeScreen()),
               );
             },
+            tooltip: 'Resume',
           ),
         ],
       ),

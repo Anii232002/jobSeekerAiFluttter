@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import '../models/job_model.dart';
 import '../models/user_model.dart';
 import '../models/resume_model.dart';
+import '../models/application_model.dart';
+import '../models/insight_model.dart';
 
 class ApiService {
   // TODO: Replace with actual backend URL
@@ -297,5 +299,269 @@ class ApiService {
         companyNameField: "Microsoft",
       ),
     ];
+  }
+
+  // ==================== APPLICATION TRACKING ENDPOINTS ====================
+
+  static Future<Map<String, dynamic>> createApplication({
+    required String userId,
+    required int jobId,
+    String status = 'applied',
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/applications/?user_id=$userId'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'job_id': jobId,
+          'status': status,
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to create application: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  static Future<ApplicationResponse> listApplications({
+    required String userId,
+    String? status,
+    String? sortBy,
+  }) async {
+    try {
+      final Map<String, String> queryParams = {'user_id': userId};
+      if (status != null && status.isNotEmpty) queryParams['status'] = status;
+      if (sortBy != null && sortBy.isNotEmpty) queryParams['sort_by'] = sortBy;
+
+      final uri = Uri.parse('$baseUrl/applications/').replace(
+        queryParameters: queryParams,
+      );
+
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
+        return ApplicationResponse.fromJson(jsonResponse);
+      } else {
+        throw Exception('Failed to list applications: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  static Future<Application> getApplication({
+    required int applicationId,
+    required String userId,
+  }) async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '$baseUrl/applications/$applicationId?user_id=$userId',
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> json = jsonDecode(response.body);
+        return Application.fromJson(json);
+      } else {
+        throw Exception('Failed to get application: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  static Future<Map<String, dynamic>> updateApplication({
+    required int applicationId,
+    required String userId,
+    String? status,
+    String? notes,
+    String? salaryOffered,
+    DateTime? followUpDate,
+  }) async {
+    try {
+      final body = <String, dynamic>{};
+      if (status != null) body['status'] = status;
+      if (notes != null) body['notes'] = notes;
+      if (salaryOffered != null) body['salary_offered'] = salaryOffered;
+      if (followUpDate != null) body['follow_up_date'] = followUpDate.toIso8601String();
+
+      final response = await http.patch(
+        Uri.parse(
+          '$baseUrl/applications/$applicationId?user_id=$userId',
+        ),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to update application: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  static Future<Map<String, dynamic>> deleteApplication({
+    required int applicationId,
+    required String userId,
+  }) async {
+    try {
+      final response = await http.delete(
+        Uri.parse(
+          '$baseUrl/applications/$applicationId?user_id=$userId',
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to delete application: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  static Future<ApplicationStats> getApplicationStats({
+    required String userId,
+  }) async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '$baseUrl/applications/stats/summary?user_id=$userId',
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> json = jsonDecode(response.body);
+        return ApplicationStats.fromJson(json);
+      } else {
+        throw Exception('Failed to get application stats: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  // ==================== INSIGHT ENDPOINTS ====================
+
+  static Future<InsightSummary> getInsightSummary({
+    required String userId,
+  }) async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '$baseUrl/insights/summary?user_id=$userId',
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> json = jsonDecode(response.body);
+        return InsightSummary.fromJson(json);
+      } else {
+        throw Exception('Failed to get insight summary: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  static Future<InsightStats> getInsightStats({
+    required String userId,
+  }) async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '$baseUrl/insights/stats?user_id=$userId',
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> json = jsonDecode(response.body);
+        return InsightStats.fromJson(json);
+      } else {
+        throw Exception('Failed to get insight stats: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  static Future<List<Skill>> getTopSkills({
+    required String userId,
+    int limit = 10,
+  }) async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '$baseUrl/insights/skills?user_id=$userId&limit=$limit',
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> json = jsonDecode(response.body);
+        final List<dynamic> skillsList = json['skills'];
+        return skillsList.map((s) => Skill.fromJson(s)).toList();
+      } else {
+        throw Exception('Failed to get top skills: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  static Future<List<Company>> getTopCompanies({
+    required String userId,
+    int limit = 10,
+  }) async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '$baseUrl/insights/companies?user_id=$userId&limit=$limit',
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> json = jsonDecode(response.body);
+        final List<dynamic> companiesList = json['companies'];
+        return companiesList.map((c) => Company.fromJson(c)).toList();
+      } else {
+        throw Exception('Failed to get top companies: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  static Future<List<Location>> getTopLocations({
+    required String userId,
+    int limit = 10,
+  }) async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '$baseUrl/insights/locations?user_id=$userId&limit=$limit',
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> json = jsonDecode(response.body);
+        final List<dynamic> locationsList = json['locations'];
+        return locationsList.map((l) => Location.fromJson(l)).toList();
+      } else {
+        throw Exception('Failed to get top locations: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
   }
 }
