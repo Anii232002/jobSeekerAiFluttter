@@ -356,6 +356,8 @@ class _FilterDrawerState extends State<FilterDrawer> {
         return 'Remotive';
       case 'workday':
         return 'Workday';
+      case 'serpapi:google_jobs:india':
+        return 'Google Jobs';
       default:
         return source
             .split(' ')

@@ -7,6 +7,8 @@ import '../models/resume_model.dart';
 import '../models/application_model.dart';
 import '../models/insight_model.dart';
 import '../services/api_service.dart';
+import '../services/secure_storage_service.dart';
+import '../utils/exceptions.dart';
 
 class JobProvider with ChangeNotifier {
   List<Job> _jobs = [];
@@ -23,6 +25,7 @@ class JobProvider with ChangeNotifier {
 
   bool _isLoading = false;
   String? _error;
+  ServerBusyException? _serverBusyError;
 
   // Pagination properties
   int _currentPage = 1;
@@ -57,6 +60,7 @@ class JobProvider with ChangeNotifier {
   InsightSummary? get insightSummary => _insightSummary;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  ServerBusyException? get serverBusyError => _serverBusyError;
   String get searchQuery => _searchQuery;
   List<String> get selectedLocations => _selectedLocations;
   List<String> get selectedSkills => _selectedSkills;
@@ -190,6 +194,7 @@ class JobProvider with ChangeNotifier {
 
     _isLoading = true;
     _error = null;
+    _serverBusyError = null;
     notifyListeners();
 
     try {
@@ -212,6 +217,9 @@ class JobProvider with ChangeNotifier {
       _hasNext = response.hasNext;
       _hasPrevious = response.hasPrevious;
       _total = response.total;
+    } on ServerBusyException catch (e) {
+      _serverBusyError = e;
+      debugPrint('Server busy: $e');
     } catch (e) {
       debugPrint('Error loading jobs: $e');
       if (e.toString().contains('Network error')) {
@@ -340,6 +348,7 @@ class JobProvider with ChangeNotifier {
     'jooble',
     'remotive',
     'workday',
+    'serpapi:google_jobs:india',
   ];
 
   // Saved jobs management
@@ -478,7 +487,28 @@ class JobProvider with ChangeNotifier {
 
   void logout() {
     _currentUser = null;
+    SecureStorageService.clearAuthData();
     notifyListeners();
+  }
+
+  /// Restore user from secure storage (called on app startup)
+  Future<void> restoreUserFromStorage() async {
+    try {
+      final userId = await SecureStorageService.getUserId();
+      if (userId != null && userId.isNotEmpty) {
+        // Create a basic user object with the stored ID
+        // In a real app, you might fetch full user details from the server
+        _currentUser = User(
+          id: userId,
+          username: await SecureStorageService.getEmail() ?? 'User',
+          email: await SecureStorageService.getEmail() ?? '',
+        );
+        await loadUserResumes();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error restoring user from storage: $e');
+    }
   }
 
   // Resume Management
@@ -509,6 +539,7 @@ class JobProvider with ChangeNotifier {
 
     _isLoading = true;
     _error = null;
+    _serverBusyError = null;
     notifyListeners();
 
     try {
@@ -523,6 +554,11 @@ class JobProvider with ChangeNotifier {
       _applications = response.applications;
       _isLoading = false;
       notifyListeners();
+    } on ServerBusyException catch (e) {
+      _serverBusyError = e;
+      _isLoading = false;
+      debugPrint('Server busy: $e');
+      notifyListeners();
     } catch (e) {
       _error = e.toString();
       _isLoading = false;
@@ -531,10 +567,15 @@ class JobProvider with ChangeNotifier {
     }
   }
 
-  /// Create a new application
+  /// Create a new application (supports both internal and external applications)
   Future<void> createApplication({
-    required int jobId,
+    int? jobId,
     String status = 'applied',
+    String? jobTitle,
+    String? companyName,
+    String? jobUrl,
+    String? salaryOffered,
+    String? notes,
   }) async {
     if (_currentUser == null) {
       throw Exception('User not logged in');
@@ -545,6 +586,11 @@ class JobProvider with ChangeNotifier {
         userId: _currentUser!.id,
         jobId: jobId,
         status: status,
+        jobTitle: jobTitle,
+        companyName: companyName,
+        jobUrl: jobUrl,
+        salaryOffered: salaryOffered,
+        notes: notes,
       );
 
       // Reload applications after creating

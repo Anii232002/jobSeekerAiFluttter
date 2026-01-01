@@ -82,7 +82,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
               ? null
               : _salaryController.text,
           followUpDate: _application.followUpDate,
-          applyLink: _application.applyLink,
+          applyLink: _application.applyLink?.isEmpty ?? true ? '' : _application.applyLink,
           jobDescription: _application.jobDescription,
         );
       });
@@ -488,7 +488,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () => _launchUrl(_application.applyLink),
+                  onPressed: () => _launchUrl(_application.applyLink?.isEmpty ?? true
+                      ? 'https://www.example.com'
+                      : _application.applyLink!),
                   icon: const Icon(Icons.open_in_new),
                   label: const Text('View Application'),
                 ),

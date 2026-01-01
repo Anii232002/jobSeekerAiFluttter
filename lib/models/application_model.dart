@@ -1,7 +1,7 @@
 class Application {
   final int id;
   final int userId;
-  final int jobId;
+  final int? jobId;
   final String jobTitle;
   final String companyName;
   final String status;
@@ -10,13 +10,13 @@ class Application {
   final String? notes;
   final String? salaryOffered;
   final DateTime? followUpDate;
-  final String applyLink;
+  final String? applyLink;
   final String? jobDescription;
 
   Application({
     required this.id,
     required this.userId,
-    required this.jobId,
+    this.jobId,
     required this.jobTitle,
     required this.companyName,
     required this.status,
@@ -25,7 +25,7 @@ class Application {
     this.notes,
     this.salaryOffered,
     this.followUpDate,
-    required this.applyLink,
+    this.applyLink,
     this.jobDescription,
   });
 

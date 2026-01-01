@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/job_provider.dart';
 import '../theme/app_theme.dart';
+import '../services/secure_storage_service.dart';
 import 'jobs_screen.dart';
 import 'onboarding_screen.dart';
 
@@ -32,12 +33,24 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       try {
-        final success = await Provider.of<JobProvider>(
+        final jobProvider = Provider.of<JobProvider>(
           context,
           listen: false,
-        ).login(_usernameController.text, _passwordController.text);
+        );
+        final success = await jobProvider.login(
+          _usernameController.text,
+          _passwordController.text,
+        );
 
         if (success && mounted) {
+          // Save credentials to secure storage
+          final userId = jobProvider.currentUser?.id ?? '';
+          final email = _usernameController.text;
+          await SecureStorageService.saveAuthData(
+            userId: userId,
+            email: email,
+          );
+
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (context) => const JobsScreen()),
           );

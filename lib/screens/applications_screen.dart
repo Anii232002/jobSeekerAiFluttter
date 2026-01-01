@@ -84,8 +84,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                   return Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(status == 'All' ? 'All' : _getStatusEmoji(status)),
-                      const SizedBox(width: 8),
+
                       Text(status == 'All' ? 'All' : _formatStatusText(status)),
                       const SizedBox(width: 8),
                       Container(
@@ -125,6 +124,27 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
   Widget _buildApplicationsTab(String statusFilter) {
     return Consumer<JobProvider>(
       builder: (context, jobProvider, child) {
+        // Show server busy toast
+        if (jobProvider.serverBusyError != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.cloud_off, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(jobProvider.serverBusyError!.message),
+                    ),
+                  ],
+                ),
+                backgroundColor: AppTheme.primaryYellow.withOpacity(0.9),
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          });
+        }
+
         // Filter applications by status
         final filteredApplications = statusFilter == 'All'
             ? jobProvider.applications
@@ -275,7 +295,12 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
             await Provider.of<JobProvider>(context, listen: false)
                 .createApplication(
               jobId: data['job_id'],
+              jobTitle: data['job_title'],
+              companyName: data['company_name'],
+              jobUrl: data['job_url'],
               status: data['status'],
+              salaryOffered: data['salary_offered'],
+              notes: data['notes'],
             );
 
             if (!context.mounted) return;

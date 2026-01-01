@@ -135,15 +135,35 @@ class JobDetailScreen extends StatelessWidget {
 
           const SizedBox(height: 16),
 
-          // Job type tags
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            alignment: WrapAlignment.center,
-            children: [
-              if (job.category != null) _buildJobTypeChip(job.displayCategory),
-              _buildJobTypeChip('Remote'),
-            ],
+          // Location chip - full width, centered
+          Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceColor,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppTheme.primaryYellow, width: 1.5),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.location_on,
+                    color: AppTheme.primaryYellow,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    job.location ?? 'Not Specified',
+                    style: const TextStyle(
+                      color: AppTheme.primaryYellow,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -195,10 +215,10 @@ class JobDetailScreen extends StatelessWidget {
         Expanded(
           child: _buildMetadataCard(
             context,
-            'Position',
-            job.displayCategory.isNotEmpty
-                ? job.displayCategory
-                : 'Senior Level',
+            '',
+            (job.category?.isNotEmpty ?? false)
+                ? job.category!
+                : 'N/A',
             Icons.work,
           ),
         ),
@@ -209,21 +229,9 @@ class JobDetailScreen extends StatelessWidget {
         Expanded(
           child: _buildMetadataCard(
             context,
-            'Salary',
+            '',
             job.salary ?? 'Not Specified',
             Icons.attach_money,
-          ),
-        ),
-
-        const SizedBox(width: 12),
-
-        // Location
-        Expanded(
-          child: _buildMetadataCard(
-            context,
-            'Location',
-            job.location ?? 'Not Specified',
-            Icons.location_on,
           ),
         ),
       ],

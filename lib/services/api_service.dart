@@ -1,14 +1,110 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:http/http.dart' as http;
 import '../models/job_model.dart';
 import '../models/user_model.dart';
 import '../models/resume_model.dart';
 import '../models/application_model.dart';
 import '../models/insight_model.dart';
+import '../utils/exceptions.dart';
 
 class ApiService {
   // TODO: Replace with actual backend URL
   static const String baseUrl = 'http://13.60.231.101:8000';
+  static const Duration _timeout = Duration(seconds: 6);
+
+  /// Helper method to retry HTTP requests with timeout
+  /// Retries once if timeout occurs
+  /// Returns a custom exception with retry information
+  static Future<http.Response> _getWithRetry(Uri url) async {
+    try {
+      return await http.get(url).timeout(
+            _timeout,
+            onTimeout: () {
+              throw TimeoutException('Request took longer than 6 seconds');
+            },
+          );
+    } on TimeoutException {
+      // First timeout, retry once
+      try {
+        return await http.get(url).timeout(
+              _timeout,
+              onTimeout: () {
+                throw TimeoutException('Retry also timed out');
+              },
+            );
+      } on TimeoutException {
+        // Both attempts timed out
+        throw Exception('RETRY_TIMEOUT');
+      }
+    }
+  }
+
+  /// Helper method to retry HTTP POST requests with timeout
+  static Future<http.Response> _postWithRetry(
+    Uri url, {
+    Map<String, String>? headers,
+    dynamic body,
+  }) async {
+    try {
+      return await http
+          .post(url, headers: headers, body: body)
+          .timeout(
+            _timeout,
+            onTimeout: () {
+              throw TimeoutException('Request took longer than 6 seconds');
+            },
+          );
+    } on TimeoutException {
+      // First timeout, retry once
+      try {
+        return await http
+            .post(url, headers: headers, body: body)
+            .timeout(
+              _timeout,
+              onTimeout: () {
+                throw TimeoutException('Retry also timed out');
+              },
+            );
+      } on TimeoutException {
+        // Both attempts timed out
+        throw Exception('RETRY_TIMEOUT');
+      }
+    }
+  }
+
+  /// Helper method to retry HTTP PATCH requests with timeout
+  static Future<http.Response> _patchWithRetry(
+    Uri url, {
+    Map<String, String>? headers,
+    dynamic body,
+  }) async {
+    try {
+      return await http
+          .patch(url, headers: headers, body: body)
+          .timeout(
+            _timeout,
+            onTimeout: () {
+              throw TimeoutException('Request took longer than 6 seconds');
+            },
+          );
+    } on TimeoutException {
+      // First timeout, retry once
+      try {
+        return await http
+            .patch(url, headers: headers, body: body)
+            .timeout(
+              _timeout,
+              onTimeout: () {
+                throw TimeoutException('Retry also timed out');
+              },
+            );
+      } on TimeoutException {
+        // Both attempts timed out
+        throw Exception('RETRY_TIMEOUT');
+      }
+    }
+  }
 
   static Future<PaginatedJobResponse> getJobs({
     String? query,
@@ -42,7 +138,8 @@ class ApiService {
       final uri = Uri.parse(
         '$baseUrl/jobs/',
       ).replace(queryParameters: queryParams);
-      final response = await http.get(uri);
+      
+      final response = await _getWithRetry(uri);
       print("==> Full URL: ${uri.toString()}");
 
       if (response.statusCode == 200) {
@@ -51,14 +148,17 @@ class ApiService {
       } else {
         throw Exception('Failed to load jobs: ${response.statusCode}');
       }
-    } catch (e) {
+    } on Exception catch (e) {
+      if (e.toString().contains('RETRY_TIMEOUT')) {
+        throw ServerBusyException();
+      }
       throw Exception('Network error: $e');
     }
   }
 
   static Future<Job> getJob(int jobId) async {
     try {
-      final response = await http.get(Uri.parse('$baseUrl/jobs/$jobId'));
+      final response = await _getWithRetry(Uri.parse('$baseUrl/jobs/$jobId'));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> json = jsonDecode(response.body);
@@ -66,7 +166,10 @@ class ApiService {
       } else {
         throw Exception('Failed to load job: ${response.statusCode}');
       }
-    } catch (e) {
+    } on Exception catch (e) {
+      if (e.toString().contains('RETRY_TIMEOUT')) {
+        throw ServerBusyException();
+      }
       throw Exception('Network error: $e');
     }
   }
@@ -100,7 +203,7 @@ class ApiService {
 
   static Future<User> login(String username, String password) async {
     try {
-      final response = await http.post(
+      final response = await _postWithRetry(
         Uri.parse('$baseUrl/users/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'username': username, 'password': password}),
@@ -115,7 +218,10 @@ class ApiService {
       } else {
         throw Exception('Login failed: ${response.body}');
       }
-    } catch (e) {
+    } on Exception catch (e) {
+      if (e.toString().contains('RETRY_TIMEOUT')) {
+        throw ServerBusyException();
+      }
       throw Exception('$e');
     }
   }
@@ -126,7 +232,7 @@ class ApiService {
     String email,
   ) async {
     try {
-      final response = await http.post(
+      final response = await _postWithRetry(
         Uri.parse('$baseUrl/users/register'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
@@ -141,7 +247,10 @@ class ApiService {
       } else {
         throw Exception('Registration failed: ${response.body}');
       }
-    } catch (e) {
+    } on Exception catch (e) {
+      if (e.toString().contains('RETRY_TIMEOUT')) {
+        throw ServerBusyException();
+      }
       throw Exception('Network error: $e');
     }
   }
@@ -305,17 +414,46 @@ class ApiService {
 
   static Future<Map<String, dynamic>> createApplication({
     required String userId,
-    required int jobId,
+    int? jobId,
     String status = 'applied',
+    String? jobTitle,
+    String? companyName,
+    String? jobUrl,
+    String? salaryOffered,
+    String? notes,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/applications/?user_id=$userId'),
+      // Build query parameters
+      final Map<String, String> queryParams = {'user_id': userId};
+      
+      // For internal applications (job_id provided)
+      if (jobId != null) {
+        queryParams['job_id'] = jobId.toString();
+      } else {
+        // For external applications (job_id is null)
+        // company_name and job_title are required as query params
+        if (companyName != null && companyName.isNotEmpty) {
+          queryParams['company_name'] = companyName;
+        }
+        if (jobTitle != null && jobTitle.isNotEmpty) {
+          queryParams['job_title'] = jobTitle;
+        }
+      }
+
+      // Build request body with optional fields
+      final body = <String, dynamic>{'status': status};
+      if (jobUrl != null) body['job_url'] = jobUrl;
+      if (salaryOffered != null) body['salary_offered'] = salaryOffered;
+      if (notes != null) body['notes'] = notes;
+
+      final uri = Uri.parse('$baseUrl/applications/').replace(
+        queryParameters: queryParams,
+      );
+
+      final response = await _postWithRetry(
+        uri,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'job_id': jobId,
-          'status': status,
-        }),
+        body: jsonEncode(body),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -323,7 +461,10 @@ class ApiService {
       } else {
         throw Exception('Failed to create application: ${response.statusCode}');
       }
-    } catch (e) {
+    } on Exception catch (e) {
+      if (e.toString().contains('RETRY_TIMEOUT')) {
+        throw ServerBusyException();
+      }
       throw Exception('Network error: $e');
     }
   }
@@ -342,7 +483,7 @@ class ApiService {
         queryParameters: queryParams,
       );
 
-      final response = await http.get(uri);
+      final response = await _getWithRetry(uri);
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
@@ -350,7 +491,10 @@ class ApiService {
       } else {
         throw Exception('Failed to list applications: ${response.statusCode}');
       }
-    } catch (e) {
+    } on Exception catch (e) {
+      if (e.toString().contains('RETRY_TIMEOUT')) {
+        throw ServerBusyException();
+      }
       throw Exception('Network error: $e');
     }
   }
@@ -360,7 +504,7 @@ class ApiService {
     required String userId,
   }) async {
     try {
-      final response = await http.get(
+      final response = await _getWithRetry(
         Uri.parse(
           '$baseUrl/applications/$applicationId?user_id=$userId',
         ),
@@ -372,7 +516,10 @@ class ApiService {
       } else {
         throw Exception('Failed to get application: ${response.statusCode}');
       }
-    } catch (e) {
+    } on Exception catch (e) {
+      if (e.toString().contains('RETRY_TIMEOUT')) {
+        throw ServerBusyException();
+      }
       throw Exception('Network error: $e');
     }
   }
@@ -392,7 +539,7 @@ class ApiService {
       if (salaryOffered != null) body['salary_offered'] = salaryOffered;
       if (followUpDate != null) body['follow_up_date'] = followUpDate.toIso8601String();
 
-      final response = await http.patch(
+      final response = await _patchWithRetry(
         Uri.parse(
           '$baseUrl/applications/$applicationId?user_id=$userId',
         ),
@@ -405,7 +552,10 @@ class ApiService {
       } else {
         throw Exception('Failed to update application: ${response.statusCode}');
       }
-    } catch (e) {
+    } on Exception catch (e) {
+      if (e.toString().contains('RETRY_TIMEOUT')) {
+        throw ServerBusyException();
+      }
       throw Exception('Network error: $e');
     }
   }
@@ -435,7 +585,7 @@ class ApiService {
     required String userId,
   }) async {
     try {
-      final response = await http.get(
+      final response = await _getWithRetry(
         Uri.parse(
           '$baseUrl/applications/stats/summary?user_id=$userId',
         ),
@@ -447,7 +597,10 @@ class ApiService {
       } else {
         throw Exception('Failed to get application stats: ${response.statusCode}');
       }
-    } catch (e) {
+    } on Exception catch (e) {
+      if (e.toString().contains('RETRY_TIMEOUT')) {
+        throw ServerBusyException();
+      }
       throw Exception('Network error: $e');
     }
   }
@@ -458,7 +611,7 @@ class ApiService {
     required String userId,
   }) async {
     try {
-      final response = await http.get(
+      final response = await _getWithRetry(
         Uri.parse(
           '$baseUrl/insights/summary?user_id=$userId',
         ),
@@ -470,7 +623,10 @@ class ApiService {
       } else {
         throw Exception('Failed to get insight summary: ${response.statusCode}');
       }
-    } catch (e) {
+    } on Exception catch (e) {
+      if (e.toString().contains('RETRY_TIMEOUT')) {
+        throw ServerBusyException();
+      }
       throw Exception('Network error: $e');
     }
   }
@@ -479,7 +635,7 @@ class ApiService {
     required String userId,
   }) async {
     try {
-      final response = await http.get(
+      final response = await _getWithRetry(
         Uri.parse(
           '$baseUrl/insights/stats?user_id=$userId',
         ),
@@ -491,7 +647,10 @@ class ApiService {
       } else {
         throw Exception('Failed to get insight stats: ${response.statusCode}');
       }
-    } catch (e) {
+    } on Exception catch (e) {
+      if (e.toString().contains('RETRY_TIMEOUT')) {
+        throw ServerBusyException();
+      }
       throw Exception('Network error: $e');
     }
   }

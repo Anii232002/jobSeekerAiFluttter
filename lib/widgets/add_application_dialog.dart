@@ -52,12 +52,14 @@ class _AddApplicationDialogState extends State<AddApplicationDialog> {
 
     try {
       widget.onSubmit({
+        'job_id': null,
         'job_title': _jobTitleController.text.isEmpty
             ? 'Unknown Position'
             : _jobTitleController.text,
         'company_name': _companyNameController.text.isEmpty
             ? 'Unknown Company'
             : _companyNameController.text,
+        'job_url': null,
         'status': _selectedStatus,
         'salary_offered': _salaryController.text.isEmpty
             ? null

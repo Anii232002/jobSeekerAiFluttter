@@ -125,6 +125,27 @@ class _JobsScreenState extends State<JobsScreen> {
             });
           }
 
+          // Show server busy toast
+          if (jobProvider.serverBusyError != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      const Icon(Icons.cloud_off, color: Colors.white),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(jobProvider.serverBusyError!.message),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: AppTheme.primaryYellow.withOpacity(0.9),
+                  duration: const Duration(seconds: 4),
+                ),
+              );
+            });
+          }
+
           if (jobProvider.isLoading && jobProvider.jobs.isEmpty) {
             return _buildInteractiveLoadingScreen();
           }

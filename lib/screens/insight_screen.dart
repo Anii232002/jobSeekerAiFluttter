@@ -66,6 +66,11 @@ class _InsightScreenState extends State<InsightScreen> {
           }
 
           if (snapshot.hasError) {
+            // Check if it's a server busy error
+            final isServerBusy = snapshot.error.toString().contains('SERVER_BUSY') ||
+                snapshot.error.toString().contains('Retry also timed out') ||
+                snapshot.error.toString().contains('servers are busy');
+            
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(32),
@@ -73,13 +78,13 @@ class _InsightScreenState extends State<InsightScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      Icons.error_outline,
+                      isServerBusy ? Icons.cloud_off : Icons.error_outline,
                       size: 80,
-                      color: AppTheme.accentRed,
+                      color: isServerBusy ? AppTheme.primaryYellow : AppTheme.accentRed,
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Error Loading Insights',
+                      isServerBusy ? 'Servers Busy' : 'Error Loading Insights',
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -87,7 +92,9 @@ class _InsightScreenState extends State<InsightScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      snapshot.error.toString(),
+                      isServerBusy
+                          ? 'Servers are busy updating insights. Please wait a moment and try again...'
+                          : snapshot.error.toString(),
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppTheme.textTertiary,
                       ),
