@@ -11,36 +11,18 @@ import '../utils/exceptions.dart';
 class ApiService {
   // TODO: Replace with actual backend URL
   static const String baseUrl = 'http://13.60.231.101:8000';
-  static const Duration _timeout = Duration(seconds: 6);
+  static const Duration _timeout = Duration(seconds: 15);
 
-  /// Helper method to retry HTTP requests with timeout
-  /// Retries once if timeout occurs
-  /// Returns a custom exception with retry information
+  /// Helper method to perform HTTP GET requests with timeout
   static Future<http.Response> _getWithRetry(Uri url) async {
     try {
-      return await http.get(url).timeout(
-            _timeout,
-            onTimeout: () {
-              throw TimeoutException('Request took longer than 6 seconds');
-            },
-          );
+      return await http.get(url).timeout(_timeout);
     } on TimeoutException {
-      // First timeout, retry once
-      try {
-        return await http.get(url).timeout(
-              _timeout,
-              onTimeout: () {
-                throw TimeoutException('Retry also timed out');
-              },
-            );
-      } on TimeoutException {
-        // Both attempts timed out
-        throw Exception('RETRY_TIMEOUT');
-      }
+      throw Exception('RETRY_TIMEOUT');
     }
   }
 
-  /// Helper method to retry HTTP POST requests with timeout
+  /// Helper method to perform HTTP POST requests with timeout
   static Future<http.Response> _postWithRetry(
     Uri url, {
     Map<String, String>? headers,
@@ -49,31 +31,13 @@ class ApiService {
     try {
       return await http
           .post(url, headers: headers, body: body)
-          .timeout(
-            _timeout,
-            onTimeout: () {
-              throw TimeoutException('Request took longer than 6 seconds');
-            },
-          );
+          .timeout(_timeout);
     } on TimeoutException {
-      // First timeout, retry once
-      try {
-        return await http
-            .post(url, headers: headers, body: body)
-            .timeout(
-              _timeout,
-              onTimeout: () {
-                throw TimeoutException('Retry also timed out');
-              },
-            );
-      } on TimeoutException {
-        // Both attempts timed out
-        throw Exception('RETRY_TIMEOUT');
-      }
+      throw Exception('RETRY_TIMEOUT');
     }
   }
 
-  /// Helper method to retry HTTP PATCH requests with timeout
+  /// Helper method to perform HTTP PATCH requests with timeout
   static Future<http.Response> _patchWithRetry(
     Uri url, {
     Map<String, String>? headers,
@@ -82,27 +46,9 @@ class ApiService {
     try {
       return await http
           .patch(url, headers: headers, body: body)
-          .timeout(
-            _timeout,
-            onTimeout: () {
-              throw TimeoutException('Request took longer than 6 seconds');
-            },
-          );
+          .timeout(_timeout);
     } on TimeoutException {
-      // First timeout, retry once
-      try {
-        return await http
-            .patch(url, headers: headers, body: body)
-            .timeout(
-              _timeout,
-              onTimeout: () {
-                throw TimeoutException('Retry also timed out');
-              },
-            );
-      } on TimeoutException {
-        // Both attempts timed out
-        throw Exception('RETRY_TIMEOUT');
-      }
+      throw Exception('RETRY_TIMEOUT');
     }
   }
 
@@ -138,7 +84,7 @@ class ApiService {
       final uri = Uri.parse(
         '$baseUrl/jobs/',
       ).replace(queryParameters: queryParams);
-      
+
       final response = await _getWithRetry(uri);
       print("==> Full URL: ${uri.toString()}");
 
@@ -425,7 +371,7 @@ class ApiService {
     try {
       // Build query parameters
       final Map<String, String> queryParams = {'user_id': userId};
-      
+
       // For internal applications (job_id provided)
       if (jobId != null) {
         queryParams['job_id'] = jobId.toString();
@@ -446,9 +392,9 @@ class ApiService {
       if (salaryOffered != null) body['salary_offered'] = salaryOffered;
       if (notes != null) body['notes'] = notes;
 
-      final uri = Uri.parse('$baseUrl/applications/').replace(
-        queryParameters: queryParams,
-      );
+      final uri = Uri.parse(
+        '$baseUrl/applications/',
+      ).replace(queryParameters: queryParams);
 
       final response = await _postWithRetry(
         uri,
@@ -479,9 +425,9 @@ class ApiService {
       if (status != null && status.isNotEmpty) queryParams['status'] = status;
       if (sortBy != null && sortBy.isNotEmpty) queryParams['sort_by'] = sortBy;
 
-      final uri = Uri.parse('$baseUrl/applications/').replace(
-        queryParameters: queryParams,
-      );
+      final uri = Uri.parse(
+        '$baseUrl/applications/',
+      ).replace(queryParameters: queryParams);
 
       final response = await _getWithRetry(uri);
 
@@ -505,9 +451,7 @@ class ApiService {
   }) async {
     try {
       final response = await _getWithRetry(
-        Uri.parse(
-          '$baseUrl/applications/$applicationId?user_id=$userId',
-        ),
+        Uri.parse('$baseUrl/applications/$applicationId?user_id=$userId'),
       );
 
       if (response.statusCode == 200) {
@@ -537,12 +481,11 @@ class ApiService {
       if (status != null) body['status'] = status;
       if (notes != null) body['notes'] = notes;
       if (salaryOffered != null) body['salary_offered'] = salaryOffered;
-      if (followUpDate != null) body['follow_up_date'] = followUpDate.toIso8601String();
+      if (followUpDate != null)
+        body['follow_up_date'] = followUpDate.toIso8601String();
 
       final response = await _patchWithRetry(
-        Uri.parse(
-          '$baseUrl/applications/$applicationId?user_id=$userId',
-        ),
+        Uri.parse('$baseUrl/applications/$applicationId?user_id=$userId'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(body),
       );
@@ -566,9 +509,7 @@ class ApiService {
   }) async {
     try {
       final response = await http.delete(
-        Uri.parse(
-          '$baseUrl/applications/$applicationId?user_id=$userId',
-        ),
+        Uri.parse('$baseUrl/applications/$applicationId?user_id=$userId'),
       );
 
       if (response.statusCode == 200) {
@@ -586,16 +527,16 @@ class ApiService {
   }) async {
     try {
       final response = await _getWithRetry(
-        Uri.parse(
-          '$baseUrl/applications/stats/summary?user_id=$userId',
-        ),
+        Uri.parse('$baseUrl/applications/stats/summary?user_id=$userId'),
       );
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> json = jsonDecode(response.body);
         return ApplicationStats.fromJson(json);
       } else {
-        throw Exception('Failed to get application stats: ${response.statusCode}');
+        throw Exception(
+          'Failed to get application stats: ${response.statusCode}',
+        );
       }
     } on Exception catch (e) {
       if (e.toString().contains('RETRY_TIMEOUT')) {
@@ -612,16 +553,16 @@ class ApiService {
   }) async {
     try {
       final response = await _getWithRetry(
-        Uri.parse(
-          '$baseUrl/insights/summary?user_id=$userId',
-        ),
+        Uri.parse('$baseUrl/insights/summary?user_id=$userId'),
       );
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> json = jsonDecode(response.body);
         return InsightSummary.fromJson(json);
       } else {
-        throw Exception('Failed to get insight summary: ${response.statusCode}');
+        throw Exception(
+          'Failed to get insight summary: ${response.statusCode}',
+        );
       }
     } on Exception catch (e) {
       if (e.toString().contains('RETRY_TIMEOUT')) {
@@ -631,14 +572,10 @@ class ApiService {
     }
   }
 
-  static Future<InsightStats> getInsightStats({
-    required String userId,
-  }) async {
+  static Future<InsightStats> getInsightStats({required String userId}) async {
     try {
       final response = await _getWithRetry(
-        Uri.parse(
-          '$baseUrl/insights/stats?user_id=$userId',
-        ),
+        Uri.parse('$baseUrl/insights/stats?user_id=$userId'),
       );
 
       if (response.statusCode == 200) {
@@ -661,9 +598,7 @@ class ApiService {
   }) async {
     try {
       final response = await http.get(
-        Uri.parse(
-          '$baseUrl/insights/skills?user_id=$userId&limit=$limit',
-        ),
+        Uri.parse('$baseUrl/insights/skills?user_id=$userId&limit=$limit'),
       );
 
       if (response.statusCode == 200) {
@@ -684,9 +619,7 @@ class ApiService {
   }) async {
     try {
       final response = await http.get(
-        Uri.parse(
-          '$baseUrl/insights/companies?user_id=$userId&limit=$limit',
-        ),
+        Uri.parse('$baseUrl/insights/companies?user_id=$userId&limit=$limit'),
       );
 
       if (response.statusCode == 200) {
@@ -707,9 +640,7 @@ class ApiService {
   }) async {
     try {
       final response = await http.get(
-        Uri.parse(
-          '$baseUrl/insights/locations?user_id=$userId&limit=$limit',
-        ),
+        Uri.parse('$baseUrl/insights/locations?user_id=$userId&limit=$limit'),
       );
 
       if (response.statusCode == 200) {
@@ -718,6 +649,147 @@ class ApiService {
         return locationsList.map((l) => Location.fromJson(l)).toList();
       } else {
         throw Exception('Failed to get top locations: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  // ==================== SAVED JOBS ENDPOINTS ====================
+
+  static Future<Map<String, dynamic>> saveJob({
+    required int jobId,
+    required String userId,
+  }) async {
+    try {
+      final response = await _postWithRetry(
+        Uri.parse('$baseUrl/saved_jobs/$jobId?user_id=$userId'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to save job: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  static Future<void> unsaveJob({
+    required int jobId,
+    required String userId,
+  }) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/saved_jobs/$jobId?user_id=$userId'),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to unsave job: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  static Future<List<Job>> getSavedJobs({required String userId}) async {
+    try {
+      final response = await _getWithRetry(
+        Uri.parse('$baseUrl/saved_jobs/?user_id=$userId'),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonList = jsonDecode(response.body);
+        // Map the response to Job objects.
+        // Note: The backend returns a structure with job_title, etc.
+        // We might need to adjust this if we want full Job objects.
+        // For now, assuming the backend returns simplified objects,
+        // but if we want full job cards, we might need a dedicated model or mapper.
+        // Let's assume the frontend Job model can handle it or we map manually.
+
+        return jsonList.map((json) {
+          // Mapping simplified saved job response to Job model for UI compatibility
+          // This assumes the backend returns enough info or we fetch details later.
+          // Based on the backend code, it returns:
+          // {id, user_id, job_id, created_at, job_title, job_company}
+          // We'll construct a minimal Job object.
+          return Job(
+            id: json['job_id'],
+            title: json['job_title'],
+            companyNameField: json['job_company'],
+            desc: '', // Not returned by list endpoint
+            applyLink: '', // Not returned
+            source: 'saved',
+            externalId: json['job_id'].toString(), // Use job_id as fallback
+            createdAt: json['created_at'],
+            location: '',
+          );
+        }).toList();
+      } else {
+        throw Exception('Failed to load saved jobs');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  // ==================== ADVICE ENDPOINTS ====================
+
+  static Future<Map<String, dynamic>> getAdvice({
+    required int jobId,
+    required int resumeId,
+  }) async {
+    try {
+      final response = await _postWithRetry(
+        Uri.parse('$baseUrl/advice/job/$jobId?resume_id=$resumeId'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else if (response.statusCode == 400) {
+        throw Exception("RESUME_TEXT_MISSING");
+      } else {
+        throw Exception('Failed to get advice: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e.toString().contains("RESUME_TEXT_MISSING")) rethrow;
+      throw Exception('Network error: $e');
+    }
+  }
+
+  // ==================== RESUME ENDPOINTS ====================
+
+  static Future<void> deleteResume(int resumeId) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/resumes/$resumeId'),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to delete resume: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  // ==================== NOTIFICATION ENDPOINTS ====================
+
+  static Future<List<Map<String, dynamic>>> getNotifications(
+    String userId,
+  ) async {
+    try {
+      final response = await _getWithRetry(
+        Uri.parse('$baseUrl/notifications/?user_id=$userId'),
+      );
+
+      if (response.statusCode == 200) {
+        return List<Map<String, dynamic>>.from(jsonDecode(response.body));
+      } else {
+        throw Exception('Failed to load notifications');
       }
     } catch (e) {
       throw Exception('Network error: $e');

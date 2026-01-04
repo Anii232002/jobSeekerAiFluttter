@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'screens/jobs_screen.dart';
+
+import 'screens/main_screen.dart';
 import 'screens/login_screen.dart';
 import 'providers/job_provider.dart';
 import 'theme/app_theme.dart';
 import 'services/secure_storage_service.dart';
 
-void main() {
+import 'services/notification_service.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService().init();
+  await NotificationService().requestPermissions();
+
   runApp(const MyApp());
 }
 
@@ -24,7 +31,7 @@ class _MyAppState extends State<MyApp> {
       // Restore user data from secure storage
       final jobProvider = Provider.of<JobProvider>(context, listen: false);
       await jobProvider.restoreUserFromStorage();
-      return const JobsScreen();
+      return const MainScreen();
     }
     return const LoginScreen();
   }

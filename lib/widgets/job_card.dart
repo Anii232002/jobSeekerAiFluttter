@@ -93,7 +93,7 @@ class JobCard extends StatelessWidget {
                       _buildMatchScoreChip(job.matchScore!),
                     if (job.category != null)
                       _buildJobTypeChip(job.displayCategory),
-                    _buildJobTypeChip('Remote'),
+
                     if (job.location?.toLowerCase().contains('anywhere') ==
                         true)
                       _buildJobTypeChip('Anywhere'),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../models/job_model.dart';
 import '../providers/job_provider.dart';
 import '../theme/app_theme.dart';
@@ -20,16 +21,25 @@ class JobDetailScreen extends StatelessWidget {
           Consumer<JobProvider>(
             builder: (context, jobProvider, child) {
               final isSaved = jobProvider.isJobSaved(job);
-              return IconButton(
-                onPressed: () {
-                  jobProvider.toggleSaveJob(job);
-                },
-                icon: Icon(
-                  isSaved ? Icons.bookmark : Icons.bookmark_border,
-                  color: isSaved
-                      ? AppTheme.primaryYellow
-                      : AppTheme.textSecondary,
-                ),
+              return Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.lightbulb_outline),
+                    tooltip: 'Get AI Advice',
+                    onPressed: () => _showAdviceDialog(context),
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      jobProvider.toggleSaveJob(job);
+                    },
+                    icon: Icon(
+                      isSaved ? Icons.bookmark : Icons.bookmark_border,
+                      color: isSaved
+                          ? AppTheme.primaryYellow
+                          : AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
               );
             },
           ),
@@ -216,9 +226,7 @@ class JobDetailScreen extends StatelessWidget {
           child: _buildMetadataCard(
             context,
             '',
-            (job.category?.isNotEmpty ?? false)
-                ? job.category!
-                : 'N/A',
+            (job.category?.isNotEmpty ?? false) ? job.category! : 'N/A',
             Icons.work,
           ),
         ),
@@ -353,24 +361,6 @@ class JobDetailScreen extends StatelessWidget {
               .toList(),
         ),
       ],
-    );
-  }
-
-  Widget _buildJobTypeChip(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceColor,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: AppTheme.textSecondary,
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
     );
   }
 
@@ -564,6 +554,161 @@ class JobDetailScreen extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+
+  void _showAdviceDialog(BuildContext context) async {
+    final provider = Provider.of<JobProvider>(context, listen: false);
+
+    // Ensure resumes are loaded
+    if (provider.resumes.isEmpty) {
+      await provider.loadUserResumes();
+    }
+
+    if (provider.resumes.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please upload a resume first to get advice.'),
+            backgroundColor: AppTheme.accentRed,
+          ),
+        );
+      }
+      return;
+    }
+
+    // Use the first resume for now
+    final resumeIdStr = provider.resumes.first.id;
+
+    // Verify it's a valid ID for backend
+    if (int.tryParse(resumeIdStr) == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid resume ID.'),
+            backgroundColor: AppTheme.accentRed,
+          ),
+        );
+      }
+      return;
+    }
+
+    if (context.mounted) {
+      showDialog(
+        context: context,
+        builder: (context) =>
+            AdviceDialog(jobId: job.id, resumeId: resumeIdStr),
+      );
+    }
+  }
+}
+
+class AdviceDialog extends StatefulWidget {
+  final int jobId;
+  final String resumeId;
+
+  const AdviceDialog({super.key, required this.jobId, required this.resumeId});
+
+  @override
+  State<AdviceDialog> createState() => _AdviceDialogState();
+}
+
+class _AdviceDialogState extends State<AdviceDialog> {
+  bool _isLoading = true;
+  String? _advice;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAdvice();
+  }
+
+  Future<void> _fetchAdvice() async {
+    try {
+      final advice = await Provider.of<JobProvider>(
+        context,
+        listen: false,
+      ).getResumeAdvice(widget.jobId, widget.resumeId);
+
+      if (mounted) {
+        setState(() {
+          _advice = advice;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppTheme.cardBackground,
+      title: Row(
+        children: [
+          const Icon(Icons.lightbulb, color: AppTheme.primaryYellow),
+          const SizedBox(width: 8),
+          const Text('AI Resume Advice'),
+        ],
+      ),
+      content: SizedBox(width: double.maxFinite, child: _buildContent()),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContent() {
+    if (_isLoading) {
+      return const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircularProgressIndicator(color: AppTheme.primaryYellow),
+          SizedBox(height: 16),
+          Text('Analyzing your resume against this job...'),
+        ],
+      );
+    }
+
+    if (_error != null) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.error_outline, color: AppTheme.accentRed, size: 48),
+          const SizedBox(height: 16),
+          Text(
+            'Failed to get advice',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          Text(_error!),
+        ],
+      );
+    }
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          MarkdownBody(
+            data: _advice ?? 'No advice available.',
+            styleSheet: MarkdownStyleSheet(
+              p: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.5),
+              strong: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

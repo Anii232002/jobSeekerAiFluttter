@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
+
 import '../models/job_model.dart';
 import '../models/user_model.dart';
 import '../models/resume_model.dart';
@@ -86,57 +86,93 @@ class JobProvider with ChangeNotifier {
     }
   }
 
-  // Load saved jobs from SharedPreferences
+  // Load saved jobs from API
   Future<void> _loadSavedJobs() async {
+    if (_currentUser == null) return;
     try {
-      final List<String>? savedJobsJson = _prefs?.getStringList('saved_jobs');
-      if (savedJobsJson != null) {
-        _savedJobs = savedJobsJson
-            .map((jobJson) => Job.fromJson(json.decode(jobJson)))
-            .toList();
-      }
+      _savedJobs = await ApiService.getSavedJobs(userId: _currentUser!.id);
+      notifyListeners();
     } catch (e) {
       debugPrint('Error loading saved jobs: $e');
     }
   }
 
-  // Load applied jobs from SharedPreferences
+  // Load applied jobs from SharedPreferences (Keeping local for now since no API mentioned for fetching applied list specifically beyond stats)
+  // Actually, we should probably fetch from API if available, but let's stick to existing pattern or if API exists?
+  // listApplications exists in ApiService. Let's use that.
   Future<void> _loadAppliedJobs() async {
+    // Replaced by loadApplications
+  }
+
+  // Save saved jobs - Now handles API calls
+  Future<void> toggleSaveJob(Job job) async {
+    if (_currentUser == null) return;
+
+    final isSaved = isJobSaved(job);
+
+    // Optimistic update
+    if (isSaved) {
+      _savedJobs.removeWhere((savedJob) => savedJob.id == job.id);
+    } else {
+      _savedJobs.add(job);
+    }
+    notifyListeners();
+
     try {
-      final List<String>? appliedJobsJson = _prefs?.getStringList(
-        'applied_jobs',
-      );
-      if (appliedJobsJson != null) {
-        _appliedJobs = appliedJobsJson
-            .map((jobJson) => Job.fromJson(json.decode(jobJson)))
-            .toList();
+      if (isSaved) {
+        await ApiService.unsaveJob(jobId: job.id, userId: _currentUser!.id);
+      } else {
+        await ApiService.saveJob(jobId: job.id, userId: _currentUser!.id);
       }
     } catch (e) {
-      debugPrint('Error loading applied jobs: $e');
+      // Revert on error
+      if (isSaved) {
+        _savedJobs.add(job);
+      } else {
+        _savedJobs.removeWhere((savedJob) => savedJob.id == job.id);
+      }
+      notifyListeners();
+      debugPrint('Error toggling saved job: $e');
+      rethrow;
     }
   }
 
-  // Save saved jobs to SharedPreferences
-  Future<void> _saveSavedJobs() async {
+  // Notifications
+  List<Map<String, dynamic>> _notifications = [];
+  List<Map<String, dynamic>> get notifications => _notifications;
+
+  Future<void> loadNotifications() async {
+    if (_currentUser == null) return;
     try {
-      final List<String> savedJobsJson = _savedJobs
-          .map((job) => json.encode(job.toJson()))
-          .toList();
-      await _prefs?.setStringList('saved_jobs', savedJobsJson);
+      _notifications = await ApiService.getNotifications(_currentUser!.id);
+      notifyListeners();
     } catch (e) {
-      debugPrint('Error saving saved jobs: $e');
+      debugPrint('Error loading notifications: $e');
     }
   }
 
-  // Save applied jobs to SharedPreferences
-  Future<void> _saveAppliedJobs() async {
+  // Resume Advice
+  Future<String> getResumeAdvice(int jobId, String resumeId) async {
     try {
-      final List<String> appliedJobsJson = _appliedJobs
-          .map((job) => json.encode(job.toJson()))
-          .toList();
-      await _prefs?.setStringList('applied_jobs', appliedJobsJson);
+      final result = await ApiService.getAdvice(
+        jobId: jobId,
+        resumeId: int.parse(resumeId),
+      );
+      return result['advice'] as String;
     } catch (e) {
-      debugPrint('Error saving applied jobs: $e');
+      rethrow;
+    }
+  }
+
+  // Delete Resume
+  Future<void> deleteResume(String resumeId) async {
+    try {
+      await ApiService.deleteResume(int.parse(resumeId));
+      _resumes.removeWhere((r) => r.id == resumeId);
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Failed to delete resume: $e");
+      rethrow;
     }
   }
 
@@ -229,13 +265,6 @@ class JobProvider with ChangeNotifier {
       } else {
         _error = 'An unexpected error occurred. Please try again.';
       }
-
-      // Ensure we don't show old data if a refresh fails hard (optional, depends on UX preference)
-      // But usually if refresh fails, we keep old data?
-      // The user said "remove the mock jobs ... showing once we get error".
-      // This implies if we were showing mock jobs, we shouldn't.
-      // But if we had REAL jobs, and refresh failed, keeping them is fine.
-      // But if this is the first load, jobs will be empty.
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -351,17 +380,6 @@ class JobProvider with ChangeNotifier {
     'serpapi:google_jobs:india',
   ];
 
-  // Saved jobs management
-  void toggleSaveJob(Job job) {
-    if (isJobSaved(job)) {
-      _savedJobs.removeWhere((savedJob) => savedJob.id == job.id);
-    } else {
-      _savedJobs.add(job);
-    }
-    _saveSavedJobs(); // Save to persistent storage
-    notifyListeners();
-  }
-
   bool isJobSaved(Job job) {
     return _savedJobs.any((savedJob) => savedJob.id == job.id);
   }
@@ -370,18 +388,14 @@ class JobProvider with ChangeNotifier {
   void markJobAsApplied(Job job) {
     if (!isJobApplied(job)) {
       _appliedJobs.add(job);
-      // Also save the job if not already saved
-      if (!isJobSaved(job)) {
-        _savedJobs.add(job);
-        _saveSavedJobs(); // Save to persistent storage
-      }
-      _saveAppliedJobs(); // Save to persistent storage
-      
+      // We don't necessarily save it (unlike before), but we can if desired.
+      // _saveAppliedJobs(); // Keeping it simpler since API tracks application
+
       // Also track in API if user is logged in
       if (_currentUser != null) {
         _trackApplicationInAPI(job);
       }
-      
+
       notifyListeners();
     }
   }
@@ -389,7 +403,7 @@ class JobProvider with ChangeNotifier {
   /// Track application in API (fire and forget)
   void _trackApplicationInAPI(Job job) {
     if (_currentUser == null) return;
-    
+
     // Fire and forget - don't block UI
     ApiService.createApplication(
       userId: _currentUser!.id,
@@ -457,6 +471,7 @@ class JobProvider with ChangeNotifier {
       }
 
       await loadUserResumes();
+      await _loadSavedJobs(); // Load saved jobs on login
 
       _isLoading = false;
       notifyListeners();
@@ -504,6 +519,7 @@ class JobProvider with ChangeNotifier {
           email: await SecureStorageService.getEmail() ?? '',
         );
         await loadUserResumes();
+        await _loadSavedJobs();
         notifyListeners();
       }
     } catch (e) {
@@ -689,8 +705,9 @@ class JobProvider with ChangeNotifier {
         throw Exception('User not logged in');
       }
 
-      _insightSummary =
-          await ApiService.getInsightSummary(userId: _currentUser!.id);
+      _insightSummary = await ApiService.getInsightSummary(
+        userId: _currentUser!.id,
+      );
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -707,13 +724,6 @@ class JobProvider with ChangeNotifier {
       throw Exception('User not logged in');
     }
 
-    return await ApiService.getApplicationStats(
-      userId: _currentUser!.id,
-    );
-  }
-
-  void deleteResume(String resumeId) {
-    _resumes.removeWhere((r) => r.id == resumeId);
-    notifyListeners();
+    return await ApiService.getApplicationStats(userId: _currentUser!.id);
   }
 }

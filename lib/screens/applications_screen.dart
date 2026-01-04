@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../widgets/application_card.dart';
 import '../widgets/add_application_dialog.dart';
 import 'application_detail_screen.dart';
+import 'insight_screen.dart';
 
 class ApplicationsScreen extends StatefulWidget {
   const ApplicationsScreen({super.key});
@@ -30,7 +31,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: _statuses.length, vsync: this);
-    
+
     // Load applications when screen initializes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<JobProvider>(context, listen: false).loadApplications();
@@ -51,7 +52,10 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
         actions: [
           IconButton(
             onPressed: () {
-              Provider.of<JobProvider>(context, listen: false).loadApplications(refresh: true);
+              Provider.of<JobProvider>(
+                context,
+                listen: false,
+              ).loadApplications(refresh: true);
             },
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh applications',
@@ -62,6 +66,24 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
             },
             icon: const Icon(Icons.add_circle_outline),
             tooltip: 'Add application manually',
+          ),
+          IconButton(
+            icon: const Icon(Icons.insights),
+            onPressed: () {
+              final userId = Provider.of<JobProvider>(
+                context,
+                listen: false,
+              ).currentUser?.id;
+              if (userId != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => InsightScreen(userId: userId),
+                  ),
+                );
+              }
+            },
+            tooltip: 'View Insights',
           ),
         ],
         bottom: TabBar(
@@ -78,13 +100,12 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                   final count = status == 'All'
                       ? jobProvider.applications.length
                       : jobProvider.applications
-                          .where((app) => app.status == status)
-                          .length;
+                            .where((app) => app.status == status)
+                            .length;
 
                   return Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-
                       Text(status == 'All' ? 'All' : _formatStatusText(status)),
                       const SizedBox(width: 8),
                       Container(
@@ -133,9 +154,7 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                   children: [
                     const Icon(Icons.cloud_off, color: Colors.white),
                     const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(jobProvider.serverBusyError!.message),
-                    ),
+                    Expanded(child: Text(jobProvider.serverBusyError!.message)),
                   ],
                 ),
                 backgroundColor: AppTheme.primaryYellow.withOpacity(0.9),
@@ -149,8 +168,8 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
         final filteredApplications = statusFilter == 'All'
             ? jobProvider.applications
             : jobProvider.applications
-                .where((app) => app.status == statusFilter)
-                .toList();
+                  .where((app) => app.status == statusFilter)
+                  .toList();
 
         if (jobProvider.isLoading && jobProvider.applications.isEmpty) {
           return Center(
@@ -197,9 +216,8 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => ApplicationDetailScreen(
-                      application: application,
-                    ),
+                    builder: (context) =>
+                        ApplicationDetailScreen(application: application),
                   ),
                 );
               },
@@ -227,24 +245,21 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
             const SizedBox(height: 24),
             Text(
               title,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
             Text(
               message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppTheme.textTertiary,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppTheme.textTertiary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: onActionPressed,
-              child: Text(actionText),
-            ),
+            ElevatedButton(onPressed: onActionPressed, child: Text(actionText)),
           ],
         ),
       ),
@@ -292,8 +307,10 @@ class _ApplicationsScreenState extends State<ApplicationsScreen>
         onSubmit: (data) async {
           try {
             // Create application via API
-            await Provider.of<JobProvider>(context, listen: false)
-                .createApplication(
+            await Provider.of<JobProvider>(
+              context,
+              listen: false,
+            ).createApplication(
               jobId: data['job_id'],
               jobTitle: data['job_title'],
               companyName: data['company_name'],

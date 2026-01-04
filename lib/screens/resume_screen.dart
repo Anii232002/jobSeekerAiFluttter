@@ -7,7 +7,8 @@ import '../theme/app_theme.dart';
 import 'package:intl/intl.dart';
 
 class ResumeScreen extends StatefulWidget {
-  const ResumeScreen({super.key});
+  final VoidCallback? onFindMatches;
+  const ResumeScreen({super.key, this.onFindMatches});
 
   @override
   State<ResumeScreen> createState() => _ResumeScreenState();
@@ -167,8 +168,11 @@ class _ResumeScreenState extends State<ResumeScreen> {
                                 context,
                                 listen: false,
                               ).searchJobsWithResume(resume.id);
-                              // Go back to Jobs Screen (which is assumed to be the home/previous route)
-                              Navigator.of(context).pop();
+
+                              // Navigate to jobs tab if callback provided
+                              if (widget.onFindMatches != null) {
+                                widget.onFindMatches!();
+                              }
                             },
                           ),
                           IconButton(

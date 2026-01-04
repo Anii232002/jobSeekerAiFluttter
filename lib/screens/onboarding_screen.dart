@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/user_model.dart';
 import '../providers/job_provider.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
-import 'jobs_screen.dart';
+import 'main_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -161,7 +160,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
       // Clear navigation stack and go to jobs
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const JobsScreen()),
+        MaterialPageRoute(builder: (context) => const MainScreen()),
         (route) => false,
       );
     } catch (e) {
@@ -239,16 +238,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         children: [
           Text(
             'Welcome to JobFinder',
-            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
             'Create your account in 30 seconds',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppTheme.textTertiary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(color: AppTheme.textTertiary),
           ),
           const SizedBox(height: 32),
 
@@ -285,9 +284,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           // Username
           Text(
             'Username',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           TextField(
@@ -308,9 +307,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           // Email
           Text(
             'Email',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           TextField(
@@ -332,9 +331,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           // Password
           Text(
             'Password',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           TextField(
@@ -392,16 +391,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         children: [
           Text(
             'Upload Your Resume',
-            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
             'This helps us match you better (optional)',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppTheme.textTertiary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(color: AppTheme.textTertiary),
           ),
           const SizedBox(height: 32),
 
@@ -435,9 +434,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 const SizedBox(height: 8),
                 Text(
                   'Supports PDF, DOCX\n(Max 10MB)',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppTheme.textTertiary,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppTheme.textTertiary),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -473,11 +472,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.info_outline,
-                  size: 16,
-                  color: AppTheme.accentGreen,
-                ),
+                Icon(Icons.info_outline, size: 16, color: AppTheme.accentGreen),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -503,25 +498,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         children: [
           Text(
             'Set Your Preferences',
-            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
             'Help us find your perfect job',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppTheme.textTertiary,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(color: AppTheme.textTertiary),
           ),
           const SizedBox(height: 32),
 
           // Locations
           Text(
             'Preferred Locations',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -558,9 +553,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           // Categories
           Text(
             'Preferred Job Categories',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -597,9 +592,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           // Salary range
           Text(
             'Salary Range',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 16),
           Column(
