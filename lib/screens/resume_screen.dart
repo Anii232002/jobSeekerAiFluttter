@@ -5,6 +5,7 @@ import '../providers/job_provider.dart';
 
 import '../theme/app_theme.dart';
 import 'package:intl/intl.dart';
+import '../services/notification_service.dart';
 
 class ResumeScreen extends StatefulWidget {
   final VoidCallback? onFindMatches;
@@ -56,6 +57,37 @@ class _ResumeScreenState extends State<ResumeScreen> {
     }
   }
 
+  Future<void> _testNotification() async {
+    final provider = Provider.of<JobProvider>(context, listen: false);
+
+    // Fetch latest notifications
+    await provider.loadNotifications();
+
+    if (provider.notifications.isNotEmpty) {
+      final notification = provider.notifications.first; // Get the latest
+      final title = notification['title'] ?? 'New Job Match';
+      final body = notification['message'] ?? 'You have a new job match!';
+
+      await NotificationService().showNotification(
+        id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        title: title,
+        body: body,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Test notification sent: $title')),
+        );
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No notifications found from API')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final resumes = Provider.of<JobProvider>(context).resumes;
@@ -66,6 +98,13 @@ class _ResumeScreenState extends State<ResumeScreen> {
         title: const Text('My Resumes'),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        actions: [
+          // Hidden button for testing notifications
+          IconButton(
+            icon: Icon(Icons.notifications, color: Colors.transparent),
+            onPressed: _testNotification,
+          ),
+        ],
       ),
       body: resumes.isEmpty
           ? Center(

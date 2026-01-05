@@ -10,7 +10,7 @@ class SecureStorageService {
 
   static const String _authTimeKey = 'auth_time';
   // Expiration duration (e.g., 1 hour)
-  static const Duration _sessionDuration = Duration(hours: 1);
+  static const Duration _sessionDuration = Duration(minutes: 30);
 
   /// Save auth data after successful login
   static Future<void> saveAuthData({

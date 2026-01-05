@@ -577,10 +577,42 @@ class JobDetailScreen extends StatelessWidget {
       return;
     }
 
-    // Use the first resume for now
-    final resumeIdStr = provider.resumes.first.id;
+    if (provider.resumes.length == 1) {
+      // If only one resume, proceed directly
+      final resumeIdStr = provider.resumes.first.id;
+      _launchAdviceDialog(context, resumeIdStr);
+    } else {
+      // Show selection dialog
+      if (context.mounted) {
+        await showDialog(
+          context: context,
+          builder: (context) {
+            return SimpleDialog(
+              title: const Text('Select Resume'),
+              backgroundColor: AppTheme.cardBackground,
+              children: provider.resumes.map((resume) {
+                return SimpleDialogOption(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _launchAdviceDialog(context, resume.id);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: Text(
+                      resume.fileName,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
+                );
+              }).toList(),
+            );
+          },
+        );
+      }
+    }
+  }
 
-    // Verify it's a valid ID for backend
+  void _launchAdviceDialog(BuildContext context, String resumeIdStr) {
     if (int.tryParse(resumeIdStr) == null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

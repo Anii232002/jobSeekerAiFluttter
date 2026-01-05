@@ -17,24 +17,8 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
-  @override
-  State<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  Future<Widget> _getHomeScreen() async {
-    final isLoggedIn = await SecureStorageService.isLoggedIn();
-    if (isLoggedIn) {
-      // Restore user data from secure storage
-      final jobProvider = Provider.of<JobProvider>(context, listen: false);
-      await jobProvider.restoreUserFromStorage();
-      return const MainScreen();
-    }
-    return const LoginScreen();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,24 +27,56 @@ class _MyAppState extends State<MyApp> {
       child: MaterialApp(
         title: 'Job Finder AI',
         theme: AppTheme.darkTheme,
-        home: FutureBuilder<Widget>(
-          future: _getHomeScreen(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Scaffold(
-                backgroundColor: AppTheme.darkTheme.scaffoldBackgroundColor,
-                body: const Center(
-                  child: CircularProgressIndicator(
-                    color: AppTheme.primaryYellow,
-                  ),
-                ),
-              );
-            }
-            return snapshot.data ?? const LoginScreen();
-          },
-        ),
+        home: const AuthWrapper(),
         debugShowCheckedModeBanner: false,
       ),
     );
+  }
+}
+
+class AuthWrapper extends StatefulWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  bool _isLoading = true;
+  bool _isLoggedIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuth();
+  }
+
+  Future<void> _checkAuth() async {
+    final isLoggedIn = await SecureStorageService.isLoggedIn();
+    if (isLoggedIn && mounted) {
+      final jobProvider = Provider.of<JobProvider>(context, listen: false);
+      await jobProvider.restoreUserFromStorage();
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLoggedIn = isLoggedIn;
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: AppTheme.darkTheme.scaffoldBackgroundColor,
+        body: const Center(
+          child: CircularProgressIndicator(color: AppTheme.primaryYellow),
+        ),
+      );
+    }
+
+    return _isLoggedIn ? const MainScreen() : const LoginScreen();
   }
 }
