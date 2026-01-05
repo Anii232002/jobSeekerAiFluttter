@@ -152,13 +152,19 @@ class JobProvider with ChangeNotifier {
   }
 
   // Resume Advice
-  Future<String> getResumeAdvice(int jobId, String resumeId) async {
+  Future<Map<String, dynamic>> getResumeAdvice(
+    int jobId,
+    String resumeId,
+  ) async {
     try {
       final result = await ApiService.getAdvice(
         jobId: jobId,
         resumeId: int.parse(resumeId),
       );
-      return result['advice'] as String;
+      return {
+        'advice': result['advice'] as String,
+        'ats_score': result['ats_score'] as String?,
+      };
     } catch (e) {
       rethrow;
     }

@@ -648,6 +648,7 @@ class AdviceDialog extends StatefulWidget {
 class _AdviceDialogState extends State<AdviceDialog> {
   bool _isLoading = true;
   String? _advice;
+  int? _atsScore;
   String? _error;
 
   @override
@@ -658,14 +659,16 @@ class _AdviceDialogState extends State<AdviceDialog> {
 
   Future<void> _fetchAdvice() async {
     try {
-      final advice = await Provider.of<JobProvider>(
+      final result = await Provider.of<JobProvider>(
         context,
         listen: false,
       ).getResumeAdvice(widget.jobId, widget.resumeId);
 
       if (mounted) {
         setState(() {
-          _advice = advice;
+          _advice = result['advice'] as String?;
+          final atsScoreStr = result['ats_score'] as String?;
+          _atsScore = atsScoreStr != null ? int.tryParse(atsScoreStr) : null;
           _isLoading = false;
         });
       }
@@ -732,11 +735,125 @@ class _AdviceDialogState extends State<AdviceDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ATS Score Widget
+          if (_atsScore != null) ...[
+            _buildATSScoreWidget(),
+            const SizedBox(height: 24),
+            const Divider(color: AppTheme.surfaceColor),
+            const SizedBox(height: 16),
+          ],
+          // Advice Content
           MarkdownBody(
             data: _advice ?? 'No advice available.',
             styleSheet: MarkdownStyleSheet(
               p: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.5),
               strong: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildATSScoreWidget() {
+    final score = _atsScore!;
+    final percentage = score / 100;
+
+    // Color grading: >=60 green, <60 && >=40 yellow, rest red
+    Color scoreColor;
+    String scoreLabel;
+    if (score >= 60) {
+      scoreColor = AppTheme.accentGreen;
+      scoreLabel = 'Good Match';
+    } else if (score >= 40) {
+      scoreColor = AppTheme.primaryYellow;
+      scoreLabel = 'Fair Match';
+    } else {
+      scoreColor = AppTheme.accentRed;
+      scoreLabel = 'Needs Work';
+    }
+
+    return Center(
+      child: Column(
+        children: [
+          Text(
+            'ATS Compatibility Score',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 16),
+          // Circular Progress Indicator
+          SizedBox(
+            width: 140,
+            height: 140,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Background circle
+                SizedBox(
+                  width: 140,
+                  height: 140,
+                  child: CircularProgressIndicator(
+                    value: 1.0,
+                    strokeWidth: 12,
+                    backgroundColor: AppTheme.surfaceColor,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      AppTheme.surfaceColor,
+                    ),
+                  ),
+                ),
+                // Progress circle
+                SizedBox(
+                  width: 140,
+                  height: 140,
+                  child: CircularProgressIndicator(
+                    value: percentage,
+                    strokeWidth: 12,
+                    backgroundColor: Colors.transparent,
+                    valueColor: AlwaysStoppedAnimation<Color>(scoreColor),
+                  ),
+                ),
+                // Score text
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '$score',
+                      style: Theme.of(context).textTheme.headlineLarge
+                          ?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: scoreColor,
+                            fontSize: 48,
+                          ),
+                    ),
+                    Text(
+                      'out of 100',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.textTertiary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Score label
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: scoreColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: scoreColor, width: 1.5),
+            ),
+            child: Text(
+              scoreLabel,
+              style: TextStyle(
+                color: scoreColor,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
             ),
           ),
         ],
