@@ -795,4 +795,19 @@ class ApiService {
       throw Exception('Network error: $e');
     }
   }
+
+  static Future<String> getPrivacyPolicy() async {
+    try {
+      final response = await _getWithRetry(Uri.parse('$baseUrl/privacy/'));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['content'] ?? 'No privacy policy available.';
+      } else {
+        throw Exception('Failed to load privacy policy');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
 }

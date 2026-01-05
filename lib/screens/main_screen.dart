@@ -4,6 +4,7 @@ import '../theme/app_theme.dart';
 import 'jobs_screen.dart';
 import 'resume_screen.dart';
 import 'applications_screen.dart';
+import 'settings_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -25,6 +26,7 @@ class _MainScreenState extends State<MainScreen> {
       const JobsScreen(),
       ResumeScreen(onFindMatches: _navigateToJobs),
       const ApplicationsScreen(),
+      const SettingsScreen(),
     ];
   }
 
@@ -83,6 +85,11 @@ class _MainScreenState extends State<MainScreen> {
                   icon: Icon(Icons.assignment_outlined),
                   activeIcon: Icon(Icons.assignment),
                   label: 'Applications',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.settings_outlined),
+                  activeIcon: Icon(Icons.settings),
+                  label: 'Settings',
                 ),
               ],
             ),

@@ -1,7 +1,8 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:flutter/foundation.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -36,9 +37,37 @@ class NotificationService {
     );
 
     // Initialize Timezone
-    tz.initializeTimeZones();
-    final timeZoneName = await FlutterTimezone.getLocalTimezone();
-    tz.setLocalLocation(tz.getLocation(timeZoneName.toString()));
+    try {
+      tz_data.initializeTimeZones();
+      final dynamic tzResult = await FlutterTimezone.getLocalTimezone();
+
+      String? timeZoneName;
+      if (tzResult is String) {
+        timeZoneName = tzResult;
+      } else {
+        // Handle web-specific TimezoneInfo or other objects
+        try {
+          // Attempt to access 'name' property commonly used in these objects
+          timeZoneName = (tzResult as dynamic).name;
+        } catch (_) {
+          // Fallback to extraction from toString if it contains the pattern
+          final str = tzResult.toString();
+          if (str.contains('(') && str.contains(',')) {
+            timeZoneName = str
+                .substring(str.indexOf('(') + 1, str.indexOf(','))
+                .trim();
+          } else {
+            timeZoneName = str;
+          }
+        }
+      }
+
+      tz.setLocalLocation(tz.getLocation(timeZoneName ?? 'UTC'));
+    } catch (e) {
+      // Fallback to UTC if detection fails or location is invalid
+      debugPrint('Timezone initialization failed: $e. Falling back to UTC.');
+      tz.setLocalLocation(tz.getLocation('UTC'));
+    }
   }
 
   Future<void> requestPermissions() async {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:workmanager/workmanager.dart';
 
@@ -45,25 +46,31 @@ void main() async {
   await NotificationService().init();
   await NotificationService().requestPermissions();
 
-  // Initialize Workmanager
-  await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
+  // Initialize Workmanager (Mobile only)
+  if (!kIsWeb) {
+    try {
+      await Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
 
-  // Calculate delay until next 9:00 AM
-  final now = DateTime.now();
-  var nextNineAm = DateTime(now.year, now.month, now.day, 9, 0);
-  if (now.isAfter(nextNineAm)) {
-    nextNineAm = nextNineAm.add(const Duration(days: 1));
+      // Calculate delay until next 9:00 AM
+      final now = DateTime.now();
+      var nextNineAm = DateTime(now.year, now.month, now.day, 9, 0);
+      if (now.isAfter(nextNineAm)) {
+        nextNineAm = nextNineAm.add(const Duration(days: 1));
+      }
+      final initialDelay = nextNineAm.difference(now);
+
+      // Register the daily task
+      await Workmanager().registerPeriodicTask(
+        "daily_job_notification",
+        "fetch_notifications_task",
+        frequency: const Duration(hours: 24),
+        initialDelay: initialDelay,
+        constraints: Constraints(networkType: NetworkType.connected),
+      );
+    } catch (e) {
+      debugPrint("Workmanager initialization failed: $e");
+    }
   }
-  final initialDelay = nextNineAm.difference(now);
-
-  // Register the daily task
-  await Workmanager().registerPeriodicTask(
-    "daily_job_notification",
-    "fetch_notifications_task",
-    frequency: const Duration(hours: 24),
-    initialDelay: initialDelay,
-    constraints: Constraints(networkType: NetworkType.connected),
-  );
 
   runApp(const MyApp());
 }
